@@ -1,4 +1,5 @@
-import { useUIStore } from '@zynta/state';
+import { useCallback } from 'react';
+import { useUIStore, useTerminalStore } from '@zynta/state';
 import { ActivityBar } from './components/ActivityBar';
 import { Sidebar } from './components/Sidebar';
 import { MainArea } from './components/MainArea';
@@ -8,15 +9,15 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useRuntimeEvents } from './hooks/useRuntimeEvents';
 
 export function App() {
+  useRuntimeEvents();
+
   const sidebarVisible = useUIStore((s) => s.sidebarVisible);
   const terminalPosition = useUIStore((s) => s.terminalPosition);
 
-  useRuntimeEvents();
-
   const layoutClass = [
-    'app-layout',
+    'app-shell',
     sidebarVisible ? 'sidebar-open' : '',
-    terminalPosition === 'collapsed' ? 'terminal-collapsed' : '',
+    terminalPosition === 'collapsed' ? 'terminal-hidden' : '',
     terminalPosition === 'right' ? 'terminal-right' : '',
   ]
     .filter(Boolean)

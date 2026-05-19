@@ -1,196 +1,115 @@
 # Zynta Studio
 
-**Local-first AI development environment.**
+**A local-first development environment that runs AI tasks on your own machine.**
 
-A desktop application for executing, orchestrating, and observing AI-assisted development workflows — all running locally on your machine.
+Zynta Studio is a desktop application for executing, orchestrating, and observing development workflows — with a real process supervisor, sandboxed command execution, and a terminal that actually runs commands.
+
+## What it does
+
+- **Task execution** — Submit commands to a Rust-based process supervisor that runs them locally with configurable timeouts, retries, and sandbox policies
+- **Terminal** — Interactive xterm.js terminal that communicates with the Rust backend over typed IPC
+- **File explorer** — Open workspace folders, navigate the file tree, and open files
+- **State management** — Zustand stores for runtime tasks, terminal sessions, workspace, and UI — all synced via Tauri's event system
+- **Security** — Command denylist, dangerous pattern detection, sandbox policies enforced server-side
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     Frontend (React)                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
-│  │ Activity │  │  Editor  │  │ Terminal │  │ Status  │ │
-│  │   Bar    │  │  Panels  │  │   (xterm)│  │  Bar    │ │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬────┘ │
-│       │              │              │              │      │
-│  ┌────┴──────────────┴──────────────┴──────────────┴──┐  │
-│  │               Zustand State Stores                  │  │
-│  │  RuntimeStore │ TerminalStore │ WorkspaceStore      │  │
-│  └───────────────────────┬─────────────────────────────┘  │
-└──────────────────────────┼───────────────────────────────┘
-                           │ Tauri IPC (typed, validated)
-┌──────────────────────────┼───────────────────────────────┐
-│    ┌─────────────────────┴────────────────────────┐      │
-│    │            Tauri Commands Layer               │      │
-│    │  health │ execute_task │ terminal_*            │      │
-│    └─────────────────────┬─────────────────────────┘      │
-│                          │                                 │
-│  ┌───────────────────────┴─────────────────────────────┐  │
-│  │              Rust Runtime Core                       │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │  │
-│  │  │  Task    │  │ Process  │  │ Sandbox  │           │  │
-│  │  │  Queue   │  │ Runner   │  │ Policy   │           │  │
-│  │  ├──────────┤  ├──────────┤  ├──────────┤           │  │
-│  │  │  Event   │  │ Terminal │  │ Storage  │           │  │
-│  │  │  Bus     │  │ Manager  │  │ History  │           │  │
-│  │  └──────────┘  └──────────┘  └──────────┘           │  │
-│  │  ┌────────────────────────────────────────┐          │  │
-│  │  │  Telemetry (tracing-subscriber + JSON)  │          │  │
-│  │  └────────────────────────────────────────┘          │  │
-│  └──────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                  React Frontend                       │
+│  Activity Bar │ Sidebar │ Main Area │ Terminal      │
+│       │        │         │           │               │
+│       └────────┴─────────┴───────────┴───── Tauri IPC │
+│                    (invoke / listen)                  │
+├──────────────────────────────────────────────────────┤
+│              Rust Backend (Tokio async)               │
+│  Task Queue │ Process Runner │ Sandbox │ Events       │
+│  Telemetry  │ Storage        │ Git    │ LLM          │
+└──────────────────────────────────────────────────────┘
 ```
 
-### Domain Boundaries
+## Stack
 
-| Package | Responsibility |
-|---------|---------------|
-| `@zynta/shared-types` | Core type definitions (Task, Event, Terminal, Runtime contracts) |
-| `@zynta/runtime-contracts` | Zod validation schemas for all IPC boundaries |
-| `@zynta/state` | Zustand stores (Runtime, Terminal, Workspace, UI) |
-| `@zynta/ui` | Shared React UI primitives |
-| `@zynta/logging` | Structured logging pipeline |
-| `src-tauri/core` | Task queue, process supervisor, lifecycle management |
-| `src-tauri/ipc` | Tauri command handlers with sandbox validation |
-| `src-tauri/process` | Process runner (tokio::process), terminal manager |
-| `src-tauri/sandbox` | Command allowlists, filesystem boundaries |
-| `src-tauri/events` | Runtime event types (Serde-serializable) |
-| `src-tauri/storage` | Persistent task history store |
-| `src-tauri/telemetry` | Structured JSON logging, metrics collection |
+| Layer | Technology |
+|-------|-----------|
+| UI | React 18 + TypeScript 5 |
+| State | Zustand |
+| Terminal | xterm.js |
+| Backend | Rust + Tokio |
+| Desktop | Tauri v2 |
+| Build | Vite + pnpm |
 
-## Runtime Model
-
-### Task Lifecycle
-
-1. **Queued** — Task submitted via IPC, enters FIFO queue
-2. **Running** — Process supervisor picks up task, spawns OS process
-3. **Completed/Failed** — Process exits, stdout/stderr captured, event emitted
-4. **Cancelled** — Task removed from queue or process aborted
-
-Tasks support:
-- Configurable timeouts
-- Automatic retry with exponential backoff
-- Sandbox validation before execution
-- Structured event emission at every lifecycle stage
-
-### Event Bus
-
-All runtime events flow through a typed channel (`mpsc::UnboundedSender<RuntimeEvent>`):
-- Task lifecycle events (created, queued, started, completed, failed, cancelled)
-- Terminal session events (created, output, closed)
-- Runtime health events (started, shutdown, health check)
-
-Frontend subscribes via Tauri's `listen()` API and dispatches to Zustand stores.
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js >= 18
-- pnpm >= 8
-- Rust >= 1.77
-- Tauri CLI v2
-
-### Install
+## Getting started
 
 ```bash
+# Install dependencies
 pnpm install
-```
 
-### Development
-
-```bash
-# Frontend only (Vite dev server)
+# Frontend dev
 pnpm dev
 
-# Full Tauri desktop app
-cd src-tauri
-cargo tauri dev
-```
+# Full desktop app
+cd src-tauri && cargo tauri dev
 
-### Build
-
-```bash
-# Frontend production build
+# Build
 pnpm build
-
-# Tauri production build
-cd src-tauri
-cargo tauri build
 ```
 
-### Type Checking
-
-```bash
-pnpm typecheck       # Frontend TypeScript
-cd src-tauri && cargo check  # Rust
-```
-
-### Testing
-
-```bash
-pnpm test            # Vitest (frontend)
-cd src-tauri && cargo test  # Rust tests
-```
-
-## Project Structure
+## Project structure
 
 ```
-├── apps/
-│   └── desktop/          # Tauri desktop application
-│       ├── src/          # React frontend source
-│       │   ├── components/    # UI components
-│       │   │   └── panels/    # Sidebar panels
-│       │   └── hooks/         # React hooks
-│       └── index.html
-├── packages/
-│   ├── shared-types/     # Core type definitions
-│   ├── runtime-contracts/ # Zod validation schemas
-│   ├── state/            # Zustand state management
-│   ├── ui/               # Shared UI components
-│   └── logging/          # Structured logging
-├── src-tauri/            # Rust backend
-│   ├── src/
-│   │   ├── core/         # Task queue, supervisor, lifecycle
-│   │   ├── ipc/          # Tauri command handlers
-│   │   ├── process/      # Process runner, terminal
-│   │   ├── sandbox/      # Security policy enforcement
-│   │   ├── events/       # Event type definitions
-│   │   ├── storage/      # Data persistence
-│   │   ├── telemetry/    # Tracing and metrics
-│   │   ├── git/          # Git operations
-│   │   └── llm/          # LLM integration (Ollama)
-│   └── Cargo.toml
-├── pnpm-workspace.yaml
-└── tsconfig.base.json
+apps/desktop/          Tauri desktop app
+  src/
+    components/        UI components (ActivityBar, Sidebar, Terminal, etc.)
+    hooks/             Custom hooks (useRuntimeEvents)
+    styles.css         Design tokens + global styles
+packages/
+  shared-types/        Core TypeScript types (Task, Event, Terminal)
+  runtime-contracts/  Zod validation schemas for IPC
+  state/              Zustand stores
+  ui/                Shared UI primitives
+  logging/           Structured logging
+src-tauri/
+  src/
+    core/             Task queue, process supervisor, lifecycle
+    ipc/              Tauri command handlers
+    process/         Process runner (tokio::process), terminal manager
+    sandbox/          Command allowlist, pattern detection
+    events/           Runtime event definitions
+    storage/          Task history persistence
+    telemetry/        tracing + metrics
+    git/              Git operations
+    llm/              Ollama integration
 ```
 
-## IPC Contracts
+## IPC Commands
 
-All IPC calls are validated server-side with Zod schemas:
+| Command | Purpose |
+|---------|---------|
+| `health` | Runtime status check |
+| `execute_task` | Queue a background task |
+| `execute_command` | Run a shell command immediately |
+| `read_directory` | List directory contents |
+| `create_terminal` | Open a terminal session |
+| `cancel_task` | Cancel a running task |
 
-| Command | Request | Response |
-|---------|---------|----------|
-| `health` | — | `{ status, version, uptime }` |
-| `execute_task` | `{ command, cwd? }` | `{ task_id, status }` |
-| `cancel_task` | `{ task_id }` | `bool` |
-| `create_terminal` | `{ cwd? }` | `session_id` |
-| `close_terminal` | `{ session_id }` | `bool` |
-| `list_terminals` | — | `[session_id]` |
+## Security
 
-## Security Model
+- Server-side command validation blocks `rm -rf /`, `sudo`, `dd`, and other dangerous commands
+- Pattern detection for malicious shell constructs
+- All IPC inputs validated with Zod schemas before processing
 
-- **Command allowlisting**: Server-side validation blocks dangerous commands (rm -rf /, sudo, etc.)
-- **Sandbox policies**: Configurable filesystem and network access boundaries
-- **Zod validation**: All IPC inputs validated at the Tauri command layer
+## Design principles
 
-## Telemetry
+- **No fake execution** — If the UI says something runs, it actually runs
+- **UI renders state** — Frontend consumes runtime events, never simulates them
+- **Typed at every boundary** — TypeScript types shared across packages, Zod schemas on IPC
+- **Minimal animations** — Every animation has a purpose (state change feedback, not decoration)
+- **Clarity over style** — Premium feel through restraint, not effects
 
-- Structured JSON logging via `tracing-subscriber`
-- File and console output
-- Runtime metrics: task counts, execution time, active workers
-- All events carry source, severity, timestamp, and correlation IDs
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
 
 ## License
 
