@@ -3,10 +3,14 @@ dist/
 dist-ssr/
 *.local
 
+# pnpm
+.pnpm-store/
+
 # Tauri
 src-tauri/target/
+src-tauri/gen/
 
-# Editor directories and files
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -16,3 +20,20 @@ src-tauri/target/
 *.njsproj
 *.sln
 *.sw?
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Build
+*.tsbuildinfo
+*.d.ts

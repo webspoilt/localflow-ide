@@ -1,20 +1,10 @@
-//! Native Git Orchestration via git2
-//!
-//! Provides repository management (clone, commit, pull, push, status, log)
-//! without requiring a system terminal.
-
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use tracing::{info, error};
-
-// ─────────────────────────────────────────────────────────
-//  Data Types
-// ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitStatusEntry {
     pub path: String,
-    pub status: String, // "modified", "new", "deleted", "renamed"
+    pub status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,19 +25,8 @@ pub struct GitRepoInfo {
     pub behind: usize,
 }
 
-// ─────────────────────────────────────────────────────────
-//  Git Operations
-//
-//  NOTE: In a production build, these functions would use the
-//  `git2` crate for native libgit2 bindings. For this iteration,
-//  we use `std::process::Command` to call the system git binary,
-//  which works universally and avoids complex libgit2 linking.
-//  The git2 integration points are marked for future drop-in.
-// ─────────────────────────────────────────────────────────
-
-/// Clone a remote repository to a local path
 pub fn clone_repo(url: &str, dest: &str) -> Result<String, String> {
-    info!("[Git] Cloning {} -> {}", url, dest);
+    info!("Cloning {} -> {}", url, dest);
 
     let output = std::process::Command::new("git")
         .args(["clone", url, dest])
@@ -58,16 +37,14 @@ pub fn clone_repo(url: &str, dest: &str) -> Result<String, String> {
         Ok(format!("Successfully cloned {} to {}", url, dest))
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        error!("[Git] Clone failed: {}", stderr);
+        error!("Clone failed: {}", stderr);
         Err(format!("git clone failed: {}", stderr))
     }
 }
 
-/// Stage all changes and create a commit
 pub fn commit(repo_path: &str, message: &str) -> Result<String, String> {
-    info!("[Git] Committing in {} with message: {}", repo_path, message);
+    info!("Committing in {} with message: {}", repo_path, message);
 
-    // Stage all
     let add = std::process::Command::new("git")
         .args(["add", "-A"])
         .current_dir(repo_path)
@@ -78,7 +55,6 @@ pub fn commit(repo_path: &str, message: &str) -> Result<String, String> {
         return Err(format!("git add failed: {}", String::from_utf8_lossy(&add.stderr)));
     }
 
-    // Commit
     let commit = std::process::Command::new("git")
         .args(["commit", "-m", message])
         .current_dir(repo_path)
@@ -92,9 +68,8 @@ pub fn commit(repo_path: &str, message: &str) -> Result<String, String> {
     }
 }
 
-/// Pull latest changes from remote
 pub fn pull(repo_path: &str) -> Result<String, String> {
-    info!("[Git] Pulling in {}", repo_path);
+    info!("Pulling in {}", repo_path);
 
     let output = std::process::Command::new("git")
         .args(["pull", "--rebase"])
@@ -109,9 +84,8 @@ pub fn pull(repo_path: &str) -> Result<String, String> {
     }
 }
 
-/// Push local commits to remote
 pub fn push(repo_path: &str) -> Result<String, String> {
-    info!("[Git] Pushing from {}", repo_path);
+    info!("Pushing from {}", repo_path);
 
     let output = std::process::Command::new("git")
         .args(["push"])
@@ -126,7 +100,6 @@ pub fn push(repo_path: &str) -> Result<String, String> {
     }
 }
 
-/// Get the status of a repository
 pub fn get_status(repo_path: &str) -> Result<Vec<GitStatusEntry>, String> {
     let output = std::process::Command::new("git")
         .args(["status", "--porcelain"])
@@ -162,7 +135,6 @@ pub fn get_status(repo_path: &str) -> Result<Vec<GitStatusEntry>, String> {
     Ok(entries)
 }
 
-/// Get the git log for a repository
 pub fn get_log(repo_path: &str, count: usize) -> Result<Vec<GitLogEntry>, String> {
     let output = std::process::Command::new("git")
         .args(["log", &format!("-{}", count), "--pretty=format:%H|%an|%ai|%s"])
@@ -192,9 +164,7 @@ pub fn get_log(repo_path: &str, count: usize) -> Result<Vec<GitLogEntry>, String
     Ok(entries)
 }
 
-/// Get repository info (branch, remote, dirty state)
 pub fn get_repo_info(repo_path: &str) -> Result<GitRepoInfo, String> {
-    // Current branch
     let branch_out = std::process::Command::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(repo_path)
@@ -203,7 +173,6 @@ pub fn get_repo_info(repo_path: &str) -> Result<GitRepoInfo, String> {
 
     let branch = String::from_utf8_lossy(&branch_out.stdout).trim().to_string();
 
-    // Remote URL
     let remote_out = std::process::Command::new("git")
         .args(["remote", "get-url", "origin"])
         .current_dir(repo_path)
@@ -213,7 +182,6 @@ pub fn get_repo_info(repo_path: &str) -> Result<GitRepoInfo, String> {
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
 
-    // Is clean?
     let status = get_status(repo_path)?;
     let is_clean = status.is_empty();
 
@@ -222,7 +190,7 @@ pub fn get_repo_info(repo_path: &str) -> Result<GitRepoInfo, String> {
         branch,
         remote_url,
         is_clean,
-        ahead: 0,  // Would require rev-list comparison
+        ahead: 0,
         behind: 0,
     })
 }

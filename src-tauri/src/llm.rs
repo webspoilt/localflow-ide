@@ -27,7 +27,7 @@ pub struct LocalLlmEngine {
 impl LocalLlmEngine {
     pub fn new(host: &str, port: u16, model: &str) -> Self {
         let client = Client::builder()
-            .timeout(Duration::from_secs(120)) // Local inference might be slow
+            .timeout(Duration::from_secs(120))
             .build()
             .expect("Failed to build HTTP client for Ollama");
 
@@ -38,13 +38,12 @@ impl LocalLlmEngine {
         }
     }
 
-    /// Default constructor pointing to localhost:11434 (standard Ollama port) and llama3
     pub fn default() -> Self {
         Self::new("127.0.0.1", 11434, "llama3")
     }
 
     pub async fn generate(&self, prompt: &str) -> Result<String> {
-        info!("Sending prompt to local Ollama instance (model: {})", self.default_model);
+        info!("Sending prompt to Ollama (model: {})", self.default_model);
 
         let req = OllamaRequest {
             model: self.default_model.clone(),
@@ -52,20 +51,22 @@ impl LocalLlmEngine {
             stream: false,
         };
 
-        let response = self.client.post(&self.endpoint)
+        let response = self.client
+            .post(&self.endpoint)
             .json(&req)
             .send()
             .await
-            .context("Failed to connect to Ollama. Make sure Ollama is running natively on your machine.")?;
+            .context("Failed to connect to Ollama. Is it running?")?;
 
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
-            error!("Ollama returned an error: {}", error_text);
+            error!("Ollama error: {}", error_text);
             return Err(anyhow::anyhow!("Ollama API error: {}", error_text));
         }
 
-        let result: OllamaResponse = response.json().await
-            .context("Failed to parse Ollama JSON response")?;
+        let result: OllamaResponse = response.json()
+            .await
+            .context("Failed to parse Ollama response")?;
 
         Ok(result.response)
     }

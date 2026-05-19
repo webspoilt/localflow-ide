@@ -1,11 +1,11 @@
 {
-    "productName": "ZyntaStudio",
-    "version": "4.0.0",
+    "productName": "Zynta Studio",
+    "version": "0.1.0",
     "identifier": "com.zyntastudio.dev",
     "build": {
-        "beforeDevCommand": "npm run dev",
-        "beforeBuildCommand": "npm run build",
-        "frontendDist": "../dist",
+        "beforeDevCommand": "pnpm --filter @zynta/desktop dev",
+        "beforeBuildCommand": "pnpm --filter @zynta/desktop build",
+        "frontendDist": "../apps/desktop/dist",
         "devUrl": "http://localhost:1420"
     },
     "app": {
@@ -14,12 +14,14 @@
                 "title": "Zynta Studio",
                 "width": 1440,
                 "height": 1024,
+                "minWidth": 800,
+                "minHeight": 600,
                 "resizable": true,
                 "fullscreen": false
             }
         ],
         "security": {
-            "csp": "default-src 'self'; connect-src 'self' http://localhost:1420 https://api.openai.com https://api.anthropic.com"
+            "csp": "default-src 'self'; connect-src 'self' http://localhost:1420"
         }
     },
     "bundle": {
