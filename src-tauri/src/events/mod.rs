@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload")]
+#[serde(rename_all = "camelCase")]
 pub enum RuntimeEvent {
     // Task lifecycle
     #[serde(rename = "TASK_CREATED")]

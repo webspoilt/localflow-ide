@@ -1,5 +1,5 @@
 {
-  "name": "@zynta/ui",
+  "name": "@local-flow/ui",
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@zynta/shared-types": "workspace:*",
+    "@local-flow/shared-types": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

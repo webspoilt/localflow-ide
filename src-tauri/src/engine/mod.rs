@@ -2,7 +2,7 @@ use tokio::process::Command;
 use tracing::{info, debug};
 use anyhow::Result;
 
-use crate::core::TaskDefinition;
+use crate::scheduler::TaskDefinition;
 
 #[derive(Debug, Clone)]
 pub struct ProcessOutput {

@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 
 export function SearchPanel() {
   const [query, setQuery] = useState('');
-  const [results] = useState<Array<{ path: string; line: number; text: string }>>([]);
+  const [results] = useState<{ path: string; line: number; text: string }[]>([]);
 
   return (
     <div style={{ padding: '8px 0' }}>
@@ -23,7 +23,7 @@ export function SearchPanel() {
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => { setQuery(e.target.value); }}
           placeholder="Search files..."
           autoFocus
           style={{

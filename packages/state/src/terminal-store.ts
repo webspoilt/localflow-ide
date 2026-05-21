@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import type { UUID } from '@zynta/shared-types';
-import type { TerminalSession, TerminalOutput, CommandHistoryEntry } from '@zynta/shared-types';
+import type { UUID } from '@local-flow/shared-types';
+import type { TerminalSession, TerminalOutput, CommandHistoryEntry } from '@local-flow/shared-types';
 
 export interface TerminalStore {
-  sessions: Record<UUID, TerminalSession>;
+  sessions: Partial<Record<UUID, TerminalSession>>;
   activeSessionId: UUID | null;
-  outputs: Record<UUID, TerminalOutput[]>;
+  outputs: Partial<Record<UUID, TerminalOutput[]>>;
   commandHistory: CommandHistoryEntry[];
 
   addSession: (session: TerminalSession) => void;
@@ -17,7 +17,7 @@ export interface TerminalStore {
   clearOutputs: (sessionId: UUID) => void;
 }
 
-export const useTerminalStore = create<TerminalStore>((set, get) => ({
+export const useTerminalStore = create<TerminalStore>((set) => ({
   sessions: {},
   activeSessionId: null,
   outputs: {},
@@ -31,18 +31,15 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   },
 
   removeSession: (sessionId) => {
-    set((state) => {
-      const { [sessionId]: _removedSession, ...remainingSessions } = state.sessions;
-      const { [sessionId]: _removedOutputs, ...remainingOutputs } = state.outputs;
-      return {
-        sessions: remainingSessions,
-        outputs: remainingOutputs,
-        activeSessionId: state.activeSessionId === sessionId ? null : state.activeSessionId,
-      };
-    });
+    set((state) => ({
+      sessions: Object.fromEntries(
+        Object.entries(state.sessions).filter(([id]) => id !== sessionId)
+      ),
+      activeSessionId: state.activeSessionId === sessionId ? null : state.activeSessionId,
+    }));
   },
 
-  setActiveSession: (sessionId) => set({ activeSessionId: sessionId }),
+  setActiveSession: (sessionId) => { set({ activeSessionId: sessionId }); },
 
   appendOutput: (output) => {
     set((state) => {

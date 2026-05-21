@@ -1,17 +1,17 @@
 {
-    "productName": "Zynta Studio",
+    "productName": "LocalFlow IDE",
     "version": "0.1.0",
-    "identifier": "com.zyntastudio.dev",
+    "identifier": "com.localflow.ide",
     "build": {
-        "beforeDevCommand": "pnpm --filter @zynta/desktop dev",
-        "beforeBuildCommand": "pnpm --filter @zynta/desktop build",
+        "beforeDevCommand": "pnpm --filter @local-flow/desktop dev",
+        "beforeBuildCommand": "pnpm --filter @local-flow/desktop build",
         "frontendDist": "../apps/desktop/dist",
         "devUrl": "http://localhost:1420"
     },
     "app": {
         "windows": [
             {
-                "title": "Zynta Studio",
+                "title": "LocalFlow IDE",
                 "width": 1440,
                 "height": 1024,
                 "minWidth": 800,

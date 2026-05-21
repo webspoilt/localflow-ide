@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"Default permissions for LocalFlow IDE","local":true,"windows":["main"],"permissions":["core:default","core:window:default","core:app:default","dialog:default","dialog:allow-open","dialog:allow-save"]}}

@@ -42,25 +42,25 @@ export const useUIStore = create<UIStore>((set) => ({
     settings: { id: 'settings', visible: false },
   },
 
-  toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
-  setSidebarWidth: (width) => set({ sidebarWidth: width }),
-  setActivePanel: (panel) => set({ activePanel: panel }),
-  setTerminalPosition: (position) => set({ terminalPosition: position }),
-  setTerminalHeight: (height) => set({ terminalHeight: height }),
+  toggleSidebar: () => { set((state) => ({ sidebarVisible: !state.sidebarVisible })); },
+  setSidebarWidth: (width) => { set({ sidebarWidth: width }); },
+  setActivePanel: (panel) => { set({ activePanel: panel }); },
+  setTerminalPosition: (position) => { set({ terminalPosition: position }); },
+  setTerminalHeight: (height) => { set({ terminalHeight: height }); },
 
   togglePanel: (panel) =>
-    set((state) => ({
+    { set((state) => ({
       panels: {
         ...state.panels,
         [panel]: { ...state.panels[panel], visible: !state.panels[panel].visible },
       },
-    })),
+    })); },
 
   setPanelVisibility: (panel, visible) =>
-    set((state) => ({
+    { set((state) => ({
       panels: {
         ...state.panels,
         [panel]: { ...state.panels[panel], visible },
       },
-    })),
+    })); },
 }));

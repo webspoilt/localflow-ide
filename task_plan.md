@@ -1,4 +1,4 @@
-# Zynta Studio — Full Architecture Refactoring Plan
+# LocalFlow IDE — Full Architecture Refactoring Plan
 
 ## Mission
 Refactor this repository from a buzzword-heavy prototype into a production-grade local-first AI development environment with real runtime systems, proper state management, responsive UI, and engineering discipline.
@@ -79,3 +79,14 @@ Refactor this repository from a buzzword-heavy prototype into a production-grade
 | Phase | Error | Attempt | Resolution |
 |-------|-------|---------|------------|
 | - | - | - | - |
+
+## Comparative Audit: 2026-05-21
+
+### Goal
+Compare LocalFlow IDE against VS Code, opencode, and Agent Zero, then produce a blunt improvement roadmap focused on product credibility, working condition, and differentiation.
+
+### Phases
+- [complete] Inspect current LocalFlow IDE structure, runtime wiring, tests, and docs
+- [complete] Inspect reference project positioning and architecture
+- [complete] Run local build/test/type checks where practical
+- [complete] Synthesize the gap assessment and top-tier roadmap

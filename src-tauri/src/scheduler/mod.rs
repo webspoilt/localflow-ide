@@ -1,11 +1,12 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{mpsc, Mutex};
 use uuid::Uuid;
 use tracing::{info, error};
 
 use crate::events::RuntimeEvent;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TaskDefinition {
     pub id: Uuid,
     pub command: Option<String>,
@@ -17,7 +18,7 @@ pub struct TaskDefinition {
     pub priority: TaskPriority,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub enum TaskPriority {
     Low = 0,
     Normal = 1,
@@ -54,6 +55,7 @@ pub struct TaskQueue {
     sender: mpsc::UnboundedSender<Task>,
     receiver: Arc<Mutex<mpsc::UnboundedReceiver<Task>>>,
     event_sender: mpsc::UnboundedSender<RuntimeEvent>,
+    queued_count: Arc<AtomicU64>,
 }
 
 impl TaskQueue {
@@ -63,6 +65,7 @@ impl TaskQueue {
             sender: tx,
             receiver: Arc::new(Mutex::new(rx)),
             event_sender,
+            queued_count: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -82,6 +85,8 @@ impl TaskQueue {
 
         if let Err(e) = self.sender.send(task) {
             error!("Failed to enqueue task: {}", e);
+        } else {
+            self.queued_count.fetch_add(1, Ordering::Release);
         }
 
         let _ = self.event_sender.send(RuntimeEvent::TaskQueued { task_id: id });
@@ -92,7 +97,15 @@ impl TaskQueue {
 
     pub async fn dequeue(&self) -> Option<Task> {
         let mut rx = self.receiver.lock().await;
-        rx.recv().await
+        let task = rx.recv().await;
+        if task.is_some() {
+            self.queued_count.fetch_sub(1, Ordering::Release);
+        }
+        task
+    }
+
+    pub fn len(&self) -> u64 {
+        self.queued_count.load(Ordering::Acquire)
     }
 
     pub fn sender(&self) -> mpsc::UnboundedSender<Task> {

@@ -24,7 +24,7 @@ export function ExtensionsPanel() {
         Extensions
       </p>
       <p style={{ color: 'var(--text-muted)', fontSize: 11, lineHeight: 1.5 }}>
-        Install extensions to add features to Zynta Studio.
+        Install extensions to add features to LocalFlow IDE.
       </p>
     </div>
   );

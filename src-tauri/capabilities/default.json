@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions for Zynta Studio",
+  "description": "Default permissions for LocalFlow IDE",
   "windows": ["main"],
   "permissions": [
     "core:default",

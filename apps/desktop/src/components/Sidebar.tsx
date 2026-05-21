@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
-import { useUIStore } from '@zynta/state';
+import { useUIStore } from '@local-flow/state';
 import { ExplorerPanel } from './panels/ExplorerPanel';
 import { SearchPanel } from './panels/SearchPanel';
 import { ExtensionsPanel } from './panels/ExtensionsPanel';
 import { SettingsPanel } from './panels/SettingsPanel';
-import { X, FolderOpen } from 'lucide-react';
+import { X } from 'lucide-react';
 
 const panelLabels: Record<string, string> = {
   explorer: 'Explorer',

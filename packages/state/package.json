@@ -1,5 +1,5 @@
 {
-  "name": "@zynta/state",
+  "name": "@local-flow/state",
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -8,8 +8,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@zynta/shared-types": "workspace:*",
-    "@zynta/runtime-contracts": "workspace:*",
+    "@local-flow/shared-types": "workspace:*",
+    "@local-flow/runtime-contracts": "workspace:*",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

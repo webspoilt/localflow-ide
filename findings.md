@@ -1,4 +1,4 @@
-# Findings — Zynta Studio Codebase Analysis
+# Findings — LocalFlow IDE Codebase Analysis
 
 ## Critical Issues Identified
 
@@ -66,3 +66,27 @@
 - **Testing**: Vitest + @testing-library/react + cargo test
 - **Linting**: ESLint + Prettier
 - **Build**: pnpm workspaces + Turborepo (optional)
+
+## Comparative Audit Findings - 2026-05-21
+
+### LocalFlow IDE Current State
+- The repository now has a real monorepo shape with `apps/desktop`, `packages/*`, and `src-tauri`, so Phase 1 is partly implemented despite `progress.md` still showing all items unchecked.
+- The frontend uses Zustand stores and Tauri event listeners, which is a meaningful improvement over purely local state.
+- The terminal UI is still not a real IDE terminal. `TerminalPanel.tsx` buffers one command line, calls `execute_command`, waits for the result, then writes stdout/stderr. That means no true PTY lifecycle, no interactive shell, no live streaming command output, no multiple terminal sessions, and no usable output/problems integration yet.
+- The docs claim an interactive xterm.js terminal and event-synced runtime, but the visible terminal path does not use the terminal store or `create_terminal` command yet.
+- The backend has real modules, but several are only scaffolding: `TaskQueue` enqueues, `Supervisor::run` never dequeues or executes work, `cancel_task` returns `false`, and `TerminalManager` stores session metadata without spawning a PTY.
+- Current verification status is not release-grade: `pnpm typecheck` fails with TS6305 errors caused by emitted `dist/*.d.ts` files being included in the program, `pnpm lint` reports 89 errors, `pnpm test` fails before executing tests because root `vite.config.ts` cannot resolve `vite`, and `cargo test` did not finish within a 3-minute timeout.
+- `.github/workflows/ci.yml` exists, but it is configured for `main` while the local branch is `master`; if the remote default is also `master`, CI will not run on normal pushes.
+- `pnpm --filter @local-flow/desktop build` succeeds, so the frontend shell can build. `pnpm --filter './packages/**' build` fails because none of the packages define a `build` script.
+- `cargo check` fails before Rust compilation completes because `src-tauri/capabilities/default.json` references `dialog:default`, `dialog:allow-open`, and `dialog:allow-save`, but the Tauri dialog plugin permission set is not available to the build.
+- `ExplorerPanel.tsx` falls back to generated mock files when `read_directory` fails, `MainArea.tsx` does not read or render actual file contents, and `StatusBar.tsx` hardcodes `main`, `TypeScript`, and `LocalFlow IDE`.
+
+### Reference Project Findings
+- VS Code positions itself around the edit-build-debug loop, extensibility, monthly releases, public roadmap/iteration/endgame plans, built-in extensions, dev containers, smoke tests, and strict layered architecture. Its terminal implementation is a full workbench subsystem, not a single component wrapper.
+- opencode is a shipped agent product, not just an app shell: install scripts, package-manager installs, desktop downloads, docs, multiple built-in agents, SDK/plugin packages, permission system, WebSocket-backed terminal, Linux/Windows CI, unit reports, Playwright e2e, release/publish workflows, and localized READMEs.
+- Agent Zero differentiates by giving the agent a full Linux/Docker environment, live browser surface, host CLI connector, desktop/LibreOffice workflows, memory/projects/profiles/plugins, multi-agent cooperation, and visible/interruptible streamed work.
+
+### Metrics
+- Local repo: 156 files visible via `rg`, 61 TypeScript/TSX/Rust source files under `apps`, `packages`, and `src-tauri` excluding generated output.
+- Test files found: 0.
+- Explicit unfinished markers: settings panel says "coming soon", editor says "coming soon", explorer uses mock fallback data, README promises no fake execution.

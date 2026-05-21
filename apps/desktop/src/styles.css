@@ -843,3 +843,134 @@ kbd {
     z-index: 40;
   }
 }
+
+/* ── File Editor Styles ────────────────────────────────────── */
+.editor-container {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  height: 38px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.editor-header-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.editor-save-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
+}
+
+.editor-save-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: #3964d8;
+}
+
+.editor-save-btn:disabled {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.editor-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-line-numbers {
+  width: 48px;
+  padding: 16px 8px 16px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  text-align: right;
+  overflow-y: hidden;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.editor-line-number {
+  display: block;
+  line-height: 1.6;
+}
+
+.editor-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 16px 12px;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 4;
+  -moz-tab-size: 4;
+  box-sizing: border-box;
+}
+
+.editor-loading, .editor-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+  height: 100%;
+}
+
+.editor-error-icon {
+  color: var(--accent-red);
+}
+
+.editor-loading-spinner {
+  animation: spin 1s linear infinite;
+  color: var(--accent-blue);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

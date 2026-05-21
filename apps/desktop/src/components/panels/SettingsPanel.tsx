@@ -1,5 +1,4 @@
-import { useState, type ReactNode } from 'react';
-import { useUIStore } from '@zynta/state';
+import { useState } from 'react';
 
 const sections = [
   { id: 'appearance', label: 'Appearance' },
@@ -24,7 +23,7 @@ export function SettingsPanel() {
         {sections.map((s) => (
           <button
             key={s.id}
-            onClick={() => setActiveSection(s.id)}
+            onClick={() => { setActiveSection(s.id); }}
             style={{
               padding: '3px 10px',
               fontSize: 11,

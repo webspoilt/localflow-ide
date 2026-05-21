@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: zynta-studio-canary
-  namespace: zynta-studio
+  name: local-flow-ide-canary
+  namespace: local-flow-ide
   labels:
-    app: zynta-studio
+    app: local-flow-ide
     track: canary
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: zynta-studio
+      app: local-flow-ide
       track: canary
   template:
     metadata:
       labels:
-        app: zynta-studio
+        app: local-flow-ide
         track: canary
     spec:
       containers:

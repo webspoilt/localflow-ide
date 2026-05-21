@@ -1,14 +1,14 @@
 import { create } from 'zustand';
-import type { Task, UUID, RuntimeAction, RuntimeConfig, WorkerInfo } from '@zynta/shared-types';
+import type { Task, UUID, RuntimeAction, RuntimeConfig, WorkerInfo } from '@local-flow/shared-types';
 
 export interface RuntimeStore {
-  tasks: Record<UUID, Task>;
+  tasks: Partial<Record<UUID, Task>>;
   taskOrder: UUID[];
   activeTaskIds: UUID[];
   completedTaskIds: UUID[];
   failedTaskIds: UUID[];
   cancelledTaskIds: UUID[];
-  workers: Record<UUID, WorkerInfo>;
+  workers: Partial<Record<UUID, WorkerInfo>>;
   queueLength: number;
   config: RuntimeConfig;
 
@@ -86,7 +86,7 @@ export const useRuntimeStore = create<RuntimeStore>((set, get) => ({
                 status: 'busy' as const,
                 currentTaskId: action.taskId,
                 startedAt: Date.now(),
-                tasksProcessed: (state.workers[action.workerId]?.tasksProcessed ?? 0),
+                tasksProcessed: state.workers[action.workerId]?.tasksProcessed ?? 0,
               },
             },
           };
@@ -173,21 +173,24 @@ export const useRuntimeStore = create<RuntimeStore>((set, get) => ({
         break;
       }
       case 'WORKER_STATUS': {
-        set((state) => ({
-          workers: {
-            ...state.workers,
-            [action.workerId]: {
-              ...state.workers[action.workerId],
-              id: action.workerId,
-              status: action.status,
-              currentTaskId: action.status === 'idle' ? undefined : state.workers[action.workerId]?.currentTaskId,
-              tasksProcessed:
-                action.status === 'idle'
-                  ? (state.workers[action.workerId]?.tasksProcessed ?? 0) + 1
-                  : (state.workers[action.workerId]?.tasksProcessed ?? 0),
+        set((state) => {
+          const existing = state.workers[action.workerId];
+          return {
+            workers: {
+              ...state.workers,
+              [action.workerId]: {
+                id: action.workerId,
+                status: action.status,
+                currentTaskId: action.status === 'idle' ? undefined : existing?.currentTaskId,
+                startedAt: existing?.startedAt ?? Date.now(),
+                tasksProcessed:
+                  action.status === 'idle'
+                    ? (existing?.tasksProcessed ?? 0) + 1
+                    : (existing?.tasksProcessed ?? 0),
+              },
             },
-          },
-        }));
+          };
+        });
         break;
       }
       case 'QUEUE_UPDATE': {
@@ -209,14 +212,17 @@ export const useRuntimeStore = create<RuntimeStore>((set, get) => ({
 
   getActiveTasks: () => {
     const state = get();
-    return state.activeTaskIds.map((id) => state.tasks[id]).filter(Boolean);
+    return state.activeTaskIds.map((id) => state.tasks[id]).filter((t): t is Task => t !== undefined);
   },
 
   clearCompleted: () => {
     set((state) => {
-      const newTasks = { ...state.tasks };
-      for (const id of [...state.completedTaskIds, ...state.failedTaskIds, ...state.cancelledTaskIds]) {
-        delete newTasks[id];
+      const removeIds = new Set([...state.completedTaskIds, ...state.failedTaskIds, ...state.cancelledTaskIds]);
+      const newTasks: Partial<Record<UUID, Task>> = {};
+      for (const [key, value] of Object.entries(state.tasks)) {
+        if (!removeIds.has(key)) {
+          newTasks[key] = value;
+        }
       }
       return {
         tasks: newTasks,
@@ -233,5 +239,5 @@ export const useRuntimeStore = create<RuntimeStore>((set, get) => ({
     });
   },
 
-  reset: () => set(initialState),
+  reset: () => { set(initialState); },
 }));

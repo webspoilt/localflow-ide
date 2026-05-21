@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: zynta-studio
-  namespace: zynta-studio
+  name: local-flow-ide
+  namespace: local-flow-ide
 spec:
   rules:
   - host: ide.example.com
@@ -12,6 +12,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: zynta-studio-service
+            name: local-flow-ide-service
             port:
               number: 80

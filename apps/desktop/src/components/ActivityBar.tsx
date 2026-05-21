@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useUIStore, type PanelId } from '@zynta/state';
+import { useUIStore, type PanelId } from '@local-flow/state';
 import {
   FileText,
   Search,
@@ -41,7 +41,7 @@ export function ActivityBar() {
         <button
           key={item.id}
           className={`activity-bar-btn ${activePanel === item.id && sidebarVisible ? 'active' : ''}`}
-          onClick={() => handlePanelClick(item.id)}
+          onClick={() => { handlePanelClick(item.id); }}
           title={item.label}
         >
           <item.icon size={18} />
@@ -52,7 +52,7 @@ export function ActivityBar() {
 
       <button
         className="activity-bar-btn"
-        onClick={() => handlePanelClick('explorer')}
+        onClick={() => { handlePanelClick('explorer'); }}
         title="Git"
       >
         <GitBranch size={18} />

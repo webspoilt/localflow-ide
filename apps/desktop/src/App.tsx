@@ -1,5 +1,4 @@
-import { useCallback } from 'react';
-import { useUIStore, useTerminalStore } from '@zynta/state';
+import { useUIStore } from '@local-flow/state';
 import { ActivityBar } from './components/ActivityBar';
 import { Sidebar } from './components/Sidebar';
 import { MainArea } from './components/MainArea';

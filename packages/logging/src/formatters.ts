@@ -1,4 +1,4 @@
-import type { SystemEvent, Task, TaskEvent } from '@zynta/shared-types';
+import type { SystemEvent, Task, TaskEvent } from '@local-flow/shared-types';
 
 export function formatTaskEvent(event: TaskEvent): string {
   const ts = new Date(event.timestamp).toISOString();
@@ -10,7 +10,7 @@ export function formatTaskStatus(task: Task): string {
   const status = task.status.toUpperCase().padEnd(10);
   const id = task.id.slice(0, 8);
   const type = task.type.padEnd(12);
-  return `${status} | ${id} | ${type} | attempts=${task.attempts} | elapsed=${elapsed}ms`;
+  return `${status} | ${id} | ${type} | attempts=${String(task.attempts)} | elapsed=${String(elapsed)}ms`;
 }
 
 export function formatSystemEvent(event: SystemEvent): string {
@@ -20,9 +20,9 @@ export function formatSystemEvent(event: SystemEvent): string {
 }
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
+  if (ms < 1000) return `${String(ms)}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   const min = Math.floor(ms / 60000);
   const sec = Math.floor((ms % 60000) / 1000);
-  return `${min}m ${sec}s`;
+  return `${String(min)}m ${String(sec)}s`;
 }

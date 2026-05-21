@@ -1,5 +1,5 @@
 {
-  "name": "@zynta/logging",
+  "name": "@local-flow/logging",
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@zynta/shared-types": "workspace:*"
+    "@local-flow/shared-types": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

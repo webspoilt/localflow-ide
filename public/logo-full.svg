@@ -25,10 +25,10 @@
     font-family="Arial Black, Arial, sans-serif"
     font-size="72" font-weight="900" fill="url(#zg)">Z</text>
 
-  <!-- ZYNTA STUDIO text -->
+  <!-- LOCALFLOW IDE text -->
   <text x="200" y="100"
     font-family="Arial Black, Arial, sans-serif"
-    font-size="62" font-weight="900" fill="url(#tg)" letter-spacing="4">ZYNTA</text>
+    font-size="62" font-weight="900" fill="url(#tg)" letter-spacing="4">LOCALFLOW</text>
   <text x="204" y="148"
     font-family="Arial, sans-serif"
     font-size="22" font-weight="400" fill="#8b8ba8" letter-spacing="8">STUDIO</text>

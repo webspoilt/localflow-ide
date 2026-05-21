@@ -1,16 +1,16 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use std::collections::HashMap;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::info;
 use std::path::Path;
 
-use crate::core::{TaskDefinition, TaskPriority};
-use crate::core::TaskQueue;
-use crate::process::{ProcessRunner, TerminalManager};
+use crate::scheduler::{TaskDefinition, TaskPriority};
+use crate::scheduler::TaskQueue;
+use crate::pty::TerminalManager;
+use crate::engine::ProcessRunner;
+use crate::supervisor::Supervisor;
 use crate::sandbox::Sandbox;
-use crate::events::RuntimeEvent;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HealthResponse {
@@ -46,11 +46,15 @@ pub struct FileEntry {
     pub children: Option<Vec<FileEntry>>,
 }
 
+use crate::governor::ResourceGovernor;
+
 pub struct AppState {
     pub task_queue: TaskQueue,
+    pub supervisor: Arc<Supervisor>,
     pub process_runner: ProcessRunner,
     pub terminal_manager: TerminalManager,
     pub sandbox: Sandbox,
+    pub resource_governor: Arc<ResourceGovernor>,
     pub start_time: chrono::DateTime<chrono::Utc>,
 }
 
@@ -58,12 +62,14 @@ pub struct AppState {
 pub async fn health(state: tauri::State<'_, Arc<Mutex<AppState>>>) -> Result<HealthResponse, String> {
     let app_state = state.lock().await;
     let uptime = (chrono::Utc::now() - app_state.start_time).num_seconds() as u64;
+    let active_tasks = app_state.supervisor.active_count().await;
+    let queue_length = app_state.task_queue.len() as usize;
     Ok(HealthResponse {
         status: "healthy".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime,
-        active_tasks: 0,
-        queue_length: 0,
+        active_tasks,
+        queue_length,
     })
 }
 
@@ -126,22 +132,47 @@ pub async fn execute_command(
 
 #[tauri::command]
 pub async fn cancel_task(
-    _state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
     task_id: String,
 ) -> Result<bool, String> {
     let task_uuid = Uuid::parse_str(&task_id).map_err(|e| format!("Invalid task ID: {}", e))?;
-    warn!(task_id = %task_uuid, "Cancel requested");
-    Ok(false)
+    let app_state = state.lock().await;
+    let cancelled = app_state.supervisor.cancel_task(task_uuid).await;
+    Ok(cancelled)
 }
 
 #[tauri::command]
 pub async fn create_terminal(
     state: tauri::State<'_, Arc<Mutex<AppState>>>,
-    cwd: Option<String>,
 ) -> Result<String, String> {
     let app_state = state.lock().await;
-    let session_id = app_state.terminal_manager.create_session(cwd, 120, 40).await;
+    let session_id = app_state.terminal_manager.create_session(None, 120, 40).await?;
     Ok(session_id.to_string())
+}
+
+#[tauri::command]
+pub async fn terminal_write(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    session_id: String,
+    data: String,
+) -> Result<(), String> {
+    let session_uuid = Uuid::parse_str(&session_id).map_err(|e| format!("Invalid session ID: {}", e))?;
+    let app_state = state.lock().await;
+    app_state.terminal_manager.write_input(session_uuid, &data).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn terminal_resize(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    session_id: String,
+    columns: u16,
+    rows: u16,
+) -> Result<(), String> {
+    let session_uuid = Uuid::parse_str(&session_id).map_err(|e| format!("Invalid session ID: {}", e))?;
+    let app_state = state.lock().await;
+    app_state.terminal_manager.resize_session(session_uuid, columns, rows).await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -207,7 +238,6 @@ pub async fn read_directory(
             "toml" => Some("toml"),
             "yaml" | "yml" => Some("yaml"),
             "sh" | "bash" => Some("shell"),
-            "toml" => Some("toml"),
             _ => None,
         }.map(|s| s.to_string());
 
@@ -233,6 +263,36 @@ pub async fn read_directory(
     serde_json::to_string(&entries).map_err(|e| format!("Failed to serialize: {}", e))
 }
 
+#[tauri::command]
+pub async fn read_file(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    path: String,
+) -> Result<String, String> {
+    let app_state = state.lock().await;
+    app_state.sandbox.validate_path(&path)?;
+    std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read file: {}", e))
+}
+
+#[tauri::command]
+pub async fn write_file(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    let app_state = state.lock().await;
+    app_state.sandbox.validate_path(&path)?;
+    
+    // Ensure parent directories exist
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directories: {}", e))?;
+    }
+    
+    std::fs::write(&path, content)
+        .map_err(|e| format!("Failed to write file: {}", e))
+}
+
 pub fn build_handler(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder.invoke_handler(tauri::generate_handler![
         health,
@@ -240,8 +300,12 @@ pub fn build_handler(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<taur
         execute_command,
         cancel_task,
         create_terminal,
+        terminal_write,
+        terminal_resize,
         close_terminal,
         list_terminals,
         read_directory,
+        read_file,
+        write_file,
     ])
 }

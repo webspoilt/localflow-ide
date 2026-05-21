@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: zynta-studio-controller
-  namespace: zynta-studio
+  name: local-flow-ide-controller
+  namespace: local-flow-ide
   labels:
-    app: zynta-studio
+    app: local-flow-ide
 spec:
   replicas: 3
   strategy:
@@ -14,11 +14,11 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      app: zynta-studio
+      app: local-flow-ide
   template:
     metadata:
       labels:
-        app: zynta-studio
+        app: local-flow-ide
     spec:
       containers:
       - name: ide-core
@@ -47,7 +47,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: agent-compute-node
-  namespace: zynta-studio
+  namespace: local-flow-ide
 spec:
   replicas: 10 # Scalable Agent Workers
   selector:
@@ -63,6 +63,6 @@ spec:
         image: godlevelide/agent-worker:2026.1
         env:
         - name: MCP_GATEWAY
-          value: "http://zynta-studio-service:8080"
+          value: "http://local-flow-ide-service:8080"
         - name: MAX_TOKENS
           value: "128000"

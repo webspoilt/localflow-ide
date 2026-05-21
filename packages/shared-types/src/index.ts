@@ -11,3 +11,16 @@ export interface HealthStatus {
   uptime: number;
   version: string;
 }
+
+export interface HealthResponse {
+  status: string;
+  version: string;
+  uptime: number;
+  active_tasks: number;
+  queue_length: number;
+}
+
+export interface TaskResponse {
+  task_id: string;
+  status: string;
+}

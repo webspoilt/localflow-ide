@@ -1,4 +1,4 @@
-# Contributing to Zynta Studio
+# Contributing to LocalFlow IDE
 
 ## Setup
 
@@ -27,11 +27,11 @@ The project is a pnpm monorepo with:
 - `packages/` — Shared packages consumed by the desktop app
 
 Key packages:
-- `@zynta/shared-types` — Core types (Task, Event, Terminal)
-- `@zynta/runtime-contracts` — Zod schemas for IPC validation
-- `@zynta/state` — Zustand stores
-- `@zynta/ui` — Shared React components
-- `@zynta/logging` — Structured logging
+- `@local-flow/shared-types` — Core types (Task, Event, Terminal)
+- `@local-flow/runtime-contracts` — Zod schemas for IPC validation
+- `@local-flow/state` — Zustand stores
+- `@local-flow/ui` — Shared React components
+- `@local-flow/logging` — Structured logging
 
 ## Backend (Rust)
 
@@ -50,10 +50,10 @@ cargo build --release
 
 ```bash
 # Dev server
-pnpm --filter @zynta/desktop dev
+pnpm --filter @local-flow/desktop dev
 
 # Build for production
-pnpm --filter @zynta/desktop build
+pnpm --filter @local-flow/desktop build
 ```
 
 ## Adding a new IPC command

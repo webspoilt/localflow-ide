@@ -1,8 +1,8 @@
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import { useWorkspaceStore, useUIStore } from '@zynta/state';
-import type { FileNode } from '@zynta/state';
+import { useWorkspaceStore, useUIStore } from '@local-flow/state';
+import type { FileNode } from '@local-flow/state';
 import {
   FileText,
   Folder,
@@ -14,105 +14,37 @@ import {
   Command,
 } from 'lucide-react';
 
-const FILE_ICONS: Record<string, string> = {
-  ts: '📘',
-  tsx: '📘',
-  js: '📒',
-  jsx: '📒',
-  json: '📋',
-  rs: '🦀',
-  css: '🎨',
-  html: '🌐',
-  md: '📝',
-  py: '🐍',
-  go: '🔵',
-  toml: '⚙️',
-  yaml: '⚙️',
-  yml: '⚙️',
-  sh: '🖥️',
-  default: '📄',
-};
-
-function getFileEmoji(name: string): string {
-  const ext = name.split('.').pop() ?? '';
-  return FILE_ICONS[ext] ?? FILE_ICONS.default;
-}
-
 export function ExplorerPanel() {
   const root = useWorkspaceStore((s) => s.root);
   const openFile = useWorkspaceStore((s) => s.openFile);
   const setRoot = useWorkspaceStore((s) => s.setRoot);
   const selectedFilePath = useWorkspaceStore((s) => s.selectedFilePath);
   const selectFile = useWorkspaceStore((s) => s.selectFile);
-  const [loading, setLoading] = useState(false);
 
-  const handleOpenFolder = useCallback(async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: 'Open Workspace Folder',
+  const handleOpenFolder = useCallback(() => {
+    open({
+      directory: true,
+      multiple: false,
+      title: 'Open Workspace Folder',
+    }).then((selected) => {
+      if (!selected) return;
+      const path = selected;
+      const name = path.split(/[\\/]/).pop() ?? 'workspace';
+      invoke<string>('read_directory', { path }).then((files) => {
+        const children = JSON.parse(files) as FileNode[];
+        setRoot({
+          id: crypto.randomUUID(),
+          name,
+          path,
+          type: 'directory',
+          children,
+        });
+      }).catch((err: unknown) => {
+        console.error('Failed to read directory:', String(err));
       });
-      if (selected) {
-        setLoading(true);
-        try {
-          const files = await invoke<string>('read_directory', { path: selected });
-          const parsed = JSON.parse(files) as FileNode;
-          setRoot(parsed);
-        } catch {
-          const mockRoot: FileNode = {
-            id: crypto.randomUUID(),
-            name: (selected as string).split(/[\\/]/).pop() ?? 'workspace',
-            path: selected as string,
-            type: 'directory',
-            children: [
-              {
-                id: crypto.randomUUID(),
-                name: 'src',
-                path: `${selected}/src`,
-                type: 'directory',
-                children: [
-                  {
-                    id: crypto.randomUUID(),
-                    name: 'index.ts',
-                    path: `${selected}/src/index.ts`,
-                    type: 'file',
-                    language: 'typescript',
-                  },
-                  {
-                    id: crypto.randomUUID(),
-                    name: 'app.tsx',
-                    path: `${selected}/src/app.tsx`,
-                    type: 'file',
-                    language: 'typescript',
-                  },
-                ],
-              },
-              {
-                id: crypto.randomUUID(),
-                name: 'README.md',
-                path: `${selected}/README.md`,
-                type: 'file',
-                language: 'markdown',
-              },
-              {
-                id: crypto.randomUUID(),
-                name: 'package.json',
-                path: `${selected}/package.json`,
-                type: 'file',
-                language: 'json',
-              },
-            ],
-          };
-          setRoot(mockRoot);
-        } finally {
-          setLoading(false);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to open folder:', err);
-      setLoading(false);
-    }
+    }).catch((err: unknown) => {
+      console.error('Failed to open folder:', String(err));
+    });
   }, [setRoot]);
 
   return (
@@ -120,7 +52,7 @@ export function ExplorerPanel() {
       <div style={{ display: 'flex', gap: 2, padding: '4px 8px', borderBottom: '1px solid var(--border-color)' }}>
         <button
           className="terminal-btn"
-          onClick={handleOpenFolder}
+          onClick={() => { handleOpenFolder(); }}
           title="Open Folder"
           style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', justifyContent: 'flex-start', padding: '4px 6px' }}
         >
@@ -136,7 +68,7 @@ export function ExplorerPanel() {
             No folder open
           </p>
           <button
-            onClick={handleOpenFolder}
+            onClick={() => { handleOpenFolder(); }}
             style={{
               padding: '6px 12px',
               background: 'var(--accent-blue)',
@@ -163,7 +95,7 @@ export function ExplorerPanel() {
               }
             }}
             selectedPath={selectedFilePath}
-            onHover={(path) => selectFile(path)}
+            onHover={(path) => { selectFile(path); }}
           />
         </div>
       )}
@@ -174,17 +106,17 @@ export function ExplorerPanel() {
         display: 'flex',
         gap: 6,
       }}>
-        <button className="terminal-btn" title="New File" onClick={() => {}}>
+        <button className="terminal-btn" title="New File" onClick={undefined}>
           <Plus size={14} />
         </button>
-        <button className="terminal-btn" title="Refresh" onClick={handleOpenFolder}>
+        <button className="terminal-btn" title="Refresh" onClick={() => { handleOpenFolder(); }}>
           <RefreshCw size={14} />
         </button>
-        <button className="terminal-btn" title="Search" onClick={() => useUIStore.getState().setActivePanel('search')}>
+        <button className="terminal-btn" title="Search" onClick={() => { useUIStore.getState().setActivePanel('search'); }}>
           <Search size={14} />
         </button>
         <div style={{ flex: 1 }} />
-        <button className="terminal-btn" title="Command Palette" onClick={() => {}}>
+        <button className="terminal-btn" title="Command Palette" onClick={undefined}>
           <Command size={14} />
         </button>
       </div>
@@ -223,7 +155,7 @@ function FileTreeNode({
             onSelect(node);
           }
         }}
-        onMouseEnter={() => onHover(node.path)}
+        onMouseEnter={() => { onHover(node.path); }}
       >
         {isDir && (
           <ChevronRight

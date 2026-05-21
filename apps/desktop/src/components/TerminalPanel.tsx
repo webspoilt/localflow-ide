@@ -3,8 +3,9 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { invoke } from '@tauri-apps/api/core';
-import { useUIStore } from '@zynta/state';
-import { Plus, X, Maximize2, Minimize2, Terminal as TerminalIcon } from 'lucide-react';
+import { listen } from '@tauri-apps/api/event';
+import { useUIStore } from '@local-flow/state';
+import { Plus, X, Maximize2, Minimize2 } from 'lucide-react';
 
 type TabType = 'terminal' | 'output' | 'problems';
 
@@ -12,12 +13,11 @@ export function TerminalPanel() {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
-  const inputBufferRef = useRef('');
+  const sessionIdRef = useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('terminal');
   const [terminalHeight, setTerminalHeight] = useState(200);
 
   const terminalPosition = useUIStore((s) => s.terminalPosition);
-  const setTerminalPosition = useUIStore((s) => s.setTerminalPosition);
 
   useEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
@@ -55,7 +55,7 @@ export function TerminalPanel() {
       cursorBlink: true,
       cursorStyle: 'bar',
       allowTransparency: true,
-      scrollback: 1000,
+      scrollback: 5000,
       convertEol: true,
     });
 
@@ -63,88 +63,67 @@ export function TerminalPanel() {
     xterm.loadAddon(fitAddon);
     xterm.open(terminalRef.current);
 
-    try { fitAddon.fit(); } catch { /* container hidden */ }
-
-    const prompt = '\r\n\x1b[90m$\x1b[0m ';
-    xterm.write('\x1b[36mZynta Studio\x1b[0m \x1b[90mruntime\x1b[0m\r\n');
-    xterm.write('Type commands. Press Enter to execute.\r\n');
-    xterm.write(prompt);
-
-    xterm.onData((data) => {
-      const code = data.charCodeAt(0);
-
-      if (code === 13) {
-        const cmd = inputBufferRef.current.trim();
-        inputBufferRef.current = '';
-
-        if (cmd) {
-          xterm.write('\r\n');
-          executeCommand(cmd, xterm);
-        }
-        xterm.write(prompt);
-        return;
-      }
-
-      if (code === 127) {
-        if (inputBufferRef.current.length > 0) {
-          inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-          xterm.write('\b \b');
-        }
-        return;
-      }
-
-      if (code === 3) {
-        xterm.write('^C\r\n');
-        inputBufferRef.current = '';
-        xterm.write(prompt);
-        return;
-      }
-
-      if (code < 32) return;
-
-      inputBufferRef.current += data;
-      xterm.write(data);
-    });
+    try { fitAddon.fit(); } catch { /* hidden */ }
 
     xtermRef.current = xterm;
     fitAddonRef.current = fitAddon;
 
-    const observer = new ResizeObserver(() => {
-      try { fitAddon.fit(); } catch { /* ignore */ }
+    // Create PTY session
+    invoke<string>('create_terminal').then((sid) => {
+      sessionIdRef.current = sid;
+      // Trigger initial resize based on fitted rows/cols
+      try {
+        fitAddon.fit();
+        invoke('terminal_resize', {
+          sessionId: sid,
+          columns: xterm.cols,
+          rows: xterm.rows,
+        }).catch(() => undefined);
+      } catch { /* hidden */ }
+    }).catch(() => {
+      xterm.write('\x1b[31mFailed to create terminal session. Backend may not be running.\x1b[0m\r\n');
     });
-    if (terminalRef.current) observer.observe(terminalRef.current);
+
+    // Listen for terminal output events
+    const unlisten = listen<{ sessionId: string; data: string; stream: string }>('runtime:log', (event) => {
+      if (event.payload.sessionId === sessionIdRef.current) {
+        xterm.write(event.payload.data);
+      }
+    });
+
+    xterm.onData((data) => {
+      if (sessionIdRef.current) {
+        invoke('terminal_write', { sessionId: sessionIdRef.current, data }).catch(() => undefined);
+      }
+    });
+
+    xterm.onResize((size) => {
+      if (sessionIdRef.current) {
+        invoke('terminal_resize', {
+          sessionId: sessionIdRef.current,
+          columns: size.cols,
+          rows: size.rows,
+        }).catch(() => undefined);
+      }
+    });
+
+    const observer = new ResizeObserver(() => {
+      try {
+        fitAddon.fit();
+      } catch { /* hidden */ }
+    });
+    observer.observe(terminalRef.current);
 
     return () => {
       observer.disconnect();
+      unlisten.then((fn) => { fn(); }).catch(() => undefined);
+      if (sessionIdRef.current) {
+        invoke('close_terminal', { sessionId: sessionIdRef.current }).catch(() => undefined);
+      }
       xterm.dispose();
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, []);
-
-  const executeCommand = useCallback(async (cmd: string, xterm: XTerm) => {
-    xterm.write(`\x1b[90mExecuting: ${cmd}\x1b[0m\r\n`);
-
-    try {
-      const result = await invoke<{ exit_code: number; stdout: string; stderr: string }>('execute_command', { command: cmd });
-
-      if (result.stdout) {
-        xterm.write(result.stdout);
-      }
-      if (result.stderr) {
-        xterm.write(`\x1b[31m${result.stderr}\x1b[0m`);
-      }
-
-      if (result.exit_code === 0) {
-        xterm.write(`\r\n\x1b[32m[Done]\x1b[0m`);
-      } else {
-        xterm.write(`\r\n\x1b[31m[Exit ${result.exit_code}]\x1b[0m`);
-      }
-    } catch (err) {
-      xterm.write(`\x1b[31mError: ${String(err)}\x1b[0m`);
-    }
-
-    xterm.write('\r\n');
   }, []);
 
   const handleSplitterDrag = useCallback(
@@ -158,7 +137,7 @@ export function TerminalPanel() {
         const newH = Math.max(80, Math.min(600, startH - diff));
         setTerminalHeight(newH);
         requestAnimationFrame(() => {
-          try { fitAddonRef.current?.fit(); } catch { /* ignore */ }
+          try { fitAddonRef.current?.fit(); } catch { /* hidden */ }
         });
       };
       const onUp = () => {
@@ -179,7 +158,7 @@ export function TerminalPanel() {
             <button
               key={tab}
               className={`terminal-tab-btn ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => { setActiveTab(tab); }}
             >
               {tab.toUpperCase()}
             </button>
@@ -192,14 +171,14 @@ export function TerminalPanel() {
           <button
             className="terminal-btn"
             title={terminalPosition === 'bottom' ? 'Dock right' : 'Dock bottom'}
-            onClick={() => setTerminalPosition(terminalPosition === 'bottom' ? 'right' : 'bottom')}
+            onClick={() => { useUIStore.getState().setTerminalPosition(terminalPosition === 'bottom' ? 'right' : 'bottom'); }}
           >
             {terminalPosition === 'bottom' ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
           </button>
           <button
             className="terminal-btn"
             title="Close terminal"
-            onClick={() => setTerminalPosition('collapsed')}
+            onClick={() => { useUIStore.getState().setTerminalPosition('collapsed'); }}
           >
             <X size={13} />
           </button>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { UUID, Timestamp } from '@zynta/shared-types';
+import type { UUID, Timestamp } from '@local-flow/shared-types';
 
 export interface FileNode {
   id: UUID;
@@ -42,7 +42,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
   activeTabId: null,
   selectedFilePath: null,
 
-  setRoot: (root) => set({ root }),
+  setRoot: (root) => { set({ root }); },
 
   openFile: (file) => {
     set((state) => {
@@ -75,9 +75,9 @@ export const useWorkspaceStore = create<WorkspaceStore>((set) => ({
     });
   },
 
-  setActiveTab: (tabId) => set({ activeTabId: tabId }),
+  setActiveTab: (tabId) => { set({ activeTabId: tabId }); },
 
-  selectFile: (filePath) => set({ selectedFilePath: filePath }),
+  selectFile: (filePath) => { set({ selectedFilePath: filePath }); },
 
   markTabDirty: (tabId, dirty) => {
     set((state) => ({

@@ -1,4 +1,4 @@
-import { useWorkspaceStore } from '@zynta/state';
+import { useWorkspaceStore } from '@local-flow/state';
 import { X } from 'lucide-react';
 
 export function EditorTabs() {
@@ -13,7 +13,7 @@ export function EditorTabs() {
         <div
           key={tab.id}
           className={`editor-tab ${tab.id === activeTabId ? 'active' : ''}`}
-          onClick={() => setActiveTab(tab.id)}
+          onClick={() => { setActiveTab(tab.id); }}
           title={tab.filePath}
         >
           {tab.isDirty && <span className="dirty-dot" />}

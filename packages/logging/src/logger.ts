@@ -1,4 +1,4 @@
-import type { EventSeverity, SystemEvent, UUID } from '@zynta/shared-types';
+import type { EventSeverity, SystemEvent, UUID } from '@local-flow/shared-types';
 
 export type LogLevel = EventSeverity;
 
@@ -87,19 +87,19 @@ export class Logger {
   debug(type: string, message: string, data?: Record<string, unknown>): void {
     if (!this.shouldLog('debug')) return;
     const event = this.createEvent('debug', type, message, data);
-    this.transports.forEach((t) => t.log('debug', event));
+    this.transports.forEach((t) => { t.log('debug', event); });
   }
 
   info(type: string, message: string, data?: Record<string, unknown>): void {
     if (!this.shouldLog('info')) return;
     const event = this.createEvent('info', type, message, data);
-    this.transports.forEach((t) => t.log('info', event));
+    this.transports.forEach((t) => { t.log('info', event); });
   }
 
   warn(type: string, message: string, data?: Record<string, unknown>): void {
     if (!this.shouldLog('warning')) return;
     const event = this.createEvent('warning', type, message, data);
-    this.transports.forEach((t) => t.log('warning', event));
+    this.transports.forEach((t) => { t.log('warning', event); });
   }
 
   error(type: string, message: string, error?: Error, data?: Record<string, unknown>): void {
@@ -114,7 +114,7 @@ export class Logger {
           }
         : undefined,
     });
-    this.transports.forEach((t) => t.log('error', event));
+    this.transports.forEach((t) => { t.log('error', event); });
   }
 
   critical(type: string, message: string, error?: Error, data?: Record<string, unknown>): void {
@@ -129,7 +129,7 @@ export class Logger {
           }
         : undefined,
     });
-    this.transports.forEach((t) => t.log('critical', event));
+    this.transports.forEach((t) => { t.log('critical', event); });
   }
 
   child(source: string): Logger {
@@ -140,4 +140,4 @@ export class Logger {
   }
 }
 
-export const rootLogger = new Logger({ source: 'zynta' });
+export const rootLogger = new Logger({ source: 'localflow' });
