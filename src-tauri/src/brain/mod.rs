@@ -6,6 +6,11 @@ pub mod matrix;
 pub mod simulator;
 pub mod dag;
 pub mod dispatch;
+pub mod execution_graph;
+pub mod architecture_graph;
+pub mod failure_analysis;
+pub mod recovery;
+pub mod explainability;
 
 use std::sync::Arc;
 use tokio::sync::mpsc;

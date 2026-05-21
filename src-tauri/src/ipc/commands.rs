@@ -11,6 +11,23 @@ use crate::pty::TerminalManager;
 use crate::engine::ProcessRunner;
 use crate::supervisor::Supervisor;
 use crate::sandbox::Sandbox;
+use crate::governor::ResourceGovernor;
+
+// Import new cognitive systems
+use crate::brain::execution_graph::ExecutionGraph;
+use crate::brain::architecture_graph::ArchitectureGraph;
+use crate::brain::failure_analysis::FailureAnalysisEngine;
+use crate::brain::recovery::RecoveryEngine;
+use crate::memory::memory_graph::MemoryGraph;
+use crate::telemetry::cost_engine::CostEngine;
+use crate::telemetry::timeline_engine::TimelineEngine;
+use crate::verification::evidence_engine::EvidenceEngine;
+use crate::model::adaptive_orchestrator::AdaptiveOrchestrator;
+use crate::model::consensus::ConsensusEngine;
+use crate::brain::explainability::ExplainabilityEngine;
+use crate::sandbox::security_graph::SecurityGraph;
+use crate::sandbox::sandbox_v2::SandboxV2;
+use crate::inspector::health_engine::HealthEngine;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HealthResponse {
@@ -46,8 +63,6 @@ pub struct FileEntry {
     pub children: Option<Vec<FileEntry>>,
 }
 
-use crate::governor::ResourceGovernor;
-
 pub struct AppState {
     pub task_queue: TaskQueue,
     pub supervisor: Arc<Supervisor>,
@@ -56,6 +71,22 @@ pub struct AppState {
     pub sandbox: Sandbox,
     pub resource_governor: Arc<ResourceGovernor>,
     pub start_time: chrono::DateTime<chrono::Utc>,
+    
+    // Cognitive Engines
+    pub execution_graph: Arc<Mutex<ExecutionGraph>>,
+    pub architecture_graph: Arc<Mutex<ArchitectureGraph>>,
+    pub failure_analysis: Arc<Mutex<FailureAnalysisEngine>>,
+    pub recovery: Arc<Mutex<RecoveryEngine>>,
+    pub memory_graph: Arc<Mutex<MemoryGraph>>,
+    pub cost_engine: Arc<CostEngine>,
+    pub timeline_engine: Arc<Mutex<TimelineEngine>>,
+    pub evidence_engine: Arc<Mutex<EvidenceEngine>>,
+    pub adaptive_orchestrator: Arc<AdaptiveOrchestrator>,
+    pub consensus_engine: Arc<ConsensusEngine>,
+    pub explainability: Arc<Mutex<ExplainabilityEngine>>,
+    pub security_graph: Arc<Mutex<SecurityGraph>>,
+    pub sandbox_v2: Arc<Mutex<SandboxV2>>,
+    pub health_engine: Arc<HealthEngine>,
 }
 
 #[tauri::command]
@@ -293,6 +324,267 @@ pub async fn write_file(
         .map_err(|e| format!("Failed to write file: {}", e))
 }
 
+#[tauri::command]
+pub async fn scan_architecture_graph(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    base_path: String,
+) -> Result<(), String> {
+    let app_state = state.lock().await;
+    let mut arch = app_state.architecture_graph.lock().await;
+    arch.scan_repository(&base_path)
+}
+
+#[tauri::command]
+pub async fn query_architecture_graph(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    target_id: String,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let arch = app_state.architecture_graph.lock().await;
+    let impacted = arch.query_impacted_by(&target_id);
+    let deps = arch.query_dependencies_of(&target_id);
+    Ok(serde_json::json!({
+        "target_id": target_id,
+        "impacted_files": impacted,
+        "dependencies": deps,
+    }))
+}
+
+#[tauri::command]
+pub async fn get_speculative_predictions(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    complexity: u32,
+    risk: u32,
+    estimated_hours: u32,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let opt = crate::brain::options::OptionStrategy {
+        name: "Speculative Option".to_string(),
+        description: "Evaluated plan path".to_string(),
+        complexity,
+        estimated_hours,
+        risk,
+    };
+    let scored = crate::brain::matrix::ScoredOption {
+        option: opt.clone(),
+        total_score: 80,
+        breakdown: crate::brain::matrix::ScoreBreakdown {
+            performance: 80,
+            security: 80,
+            maintainability: 80,
+            complexity_penalty: 0,
+            testability: 80,
+        },
+    };
+    let _sim_result = app_state.task_queue.clone(); // unused, just using strategy simulator directly
+    let sim = crate::brain::simulator::StrategySimulator::new();
+    let result = sim.simulate(&[opt], &[scored]);
+    
+    serde_json::to_value(&result).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_repository_health(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    base_path: String,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let health = app_state.health_engine.calculate_health(&base_path);
+    serde_json::to_value(&health).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_health_trend(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let trend = app_state.health_engine.get_health_trend();
+    serde_json::to_value(&trend).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_timeline_predictions(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let timeline = app_state.timeline_engine.lock().await;
+    let pred = timeline.predict_evolution();
+    serde_json::to_value(&pred).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_explainability_decisions(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let exp = app_state.explainability.lock().await;
+    serde_json::to_value(&exp.get_decisions()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn add_explainability_decision(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    decision_type: String,
+    choice_made: String,
+    alternatives_rejected: Vec<String>,
+    rationale: String,
+) -> Result<String, String> {
+    let app_state = state.lock().await;
+    let mut exp = app_state.explainability.lock().await;
+    let id = exp.record_decision(&decision_type, &choice_made, alternatives_rejected, &rationale);
+    Ok(id)
+}
+
+#[tauri::command]
+pub async fn get_cost_summary(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let (cost, input, output, energy) = app_state.cost_engine.get_aggregates().await;
+    let resource = app_state.cost_engine.resource_record.lock().await;
+    Ok(serde_json::json!({
+        "total_cost_usd": cost,
+        "input_tokens": input,
+        "output_tokens": output,
+        "energy_wh": energy,
+        "cpu_utilization": resource.cpu_utilization,
+        "gpu_utilization": resource.gpu_utilization,
+        "ram_mb": resource.ram_mb,
+    }))
+}
+
+#[tauri::command]
+pub async fn update_resource_costs(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    cpu: f64,
+    gpu: f64,
+    ram: u64,
+    active_duration_sec: f64,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let updated = app_state.cost_engine.update_resource_metrics(cpu, gpu, ram, active_duration_sec).await;
+    serde_json::to_value(&updated).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_security_incidents(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let sec = app_state.security_graph.lock().await;
+    serde_json::to_value(&sec.incidents).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn validate_sandbox_write(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    path: String,
+) -> Result<String, String> {
+    let app_state = state.lock().await;
+    let mut sec = app_state.security_graph.lock().await;
+    let permission = sec.validate_file_write(&path);
+    let res = match permission {
+        crate::sandbox::security_graph::Permission::Allow => "Allow",
+        crate::sandbox::security_graph::Permission::Deny => "Deny",
+        crate::sandbox::security_graph::Permission::AuditRequired => "AuditRequired",
+    };
+    Ok(res.to_string())
+}
+
+#[tauri::command]
+pub async fn check_destructive_command(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    command: String,
+) -> Result<bool, String> {
+    let app_state = state.lock().await;
+    let mut sec = app_state.security_graph.lock().await;
+    let is_destructive_str = sec.validate_command(&command);
+    let sandbox = app_state.sandbox_v2.lock().await;
+    let is_destructive = sandbox.is_destructive_action(&command) || is_destructive_str.is_err();
+    Ok(is_destructive)
+}
+
+#[tauri::command]
+pub async fn virtual_read_file(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    path: String,
+) -> Result<String, String> {
+    let app_state = state.lock().await;
+    let sandbox = app_state.sandbox_v2.lock().await;
+    sandbox.virtual_read(&path)
+}
+
+#[tauri::command]
+pub async fn virtual_write_file(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    let app_state = state.lock().await;
+    let mut sandbox = app_state.sandbox_v2.lock().await;
+    sandbox.virtual_write(&path, &content);
+    
+    // Also scan for potential secret leaks when virtual write occurs
+    let mut sec = app_state.security_graph.lock().await;
+    sec.scan_content_for_secrets(&content, &path);
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn commit_virtual_changes(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    let app_state = state.lock().await;
+    let mut sandbox = app_state.sandbox_v2.lock().await;
+    sandbox.commit_virtual_changes()
+}
+
+#[tauri::command]
+pub async fn get_execution_graph(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+) -> Result<serde_json::Value, String> {
+    let app_state = state.lock().await;
+    let graph = app_state.execution_graph.lock().await;
+    Ok(serde_json::json!({
+        "nodes": graph.nodes,
+        "edges": graph.edges,
+        "history": graph.history,
+    }))
+}
+
+#[tauri::command]
+pub async fn add_simulated_node(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>,
+    name: String,
+    node_type_str: String,
+    triggered_by: String,
+    reason: String,
+    input_hash: String,
+) -> Result<String, String> {
+    let app_state = state.lock().await;
+    let mut graph = app_state.execution_graph.lock().await;
+    use crate::brain::execution_graph::NodeType;
+    let node_type = match node_type_str.as_str() {
+        "TaskNode" => NodeType::TaskNode,
+        "CodeNode" => NodeType::CodeNode,
+        "BuildNode" => NodeType::BuildNode,
+        "AgentNode" => NodeType::AgentNode,
+        "VerificationNode" => NodeType::VerificationNode,
+        "DecisionNode" => NodeType::DecisionNode,
+        _ => NodeType::DependencyNode,
+    };
+    let id = graph.add_node(&name, node_type, &triggered_by, &reason, &input_hash);
+    
+    // Add simulated edge if there are previous nodes
+    if graph.nodes.len() > 1 {
+        let prev_id = graph.nodes[graph.nodes.len() - 2].id;
+        let _ = graph.add_edge(prev_id, id);
+    }
+    
+    Ok(id.to_string())
+}
+
 pub fn build_handler(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder.invoke_handler(tauri::generate_handler![
         health,
@@ -307,5 +599,23 @@ pub fn build_handler(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<taur
         read_directory,
         read_file,
         write_file,
+        scan_architecture_graph,
+        query_architecture_graph,
+        get_speculative_predictions,
+        get_repository_health,
+        get_health_trend,
+        get_timeline_predictions,
+        get_explainability_decisions,
+        add_explainability_decision,
+        get_cost_summary,
+        update_resource_costs,
+        get_security_incidents,
+        validate_sandbox_write,
+        check_destructive_command,
+        virtual_read_file,
+        virtual_write_file,
+        commit_virtual_changes,
+        get_execution_graph,
+        add_simulated_node,
     ])
 }

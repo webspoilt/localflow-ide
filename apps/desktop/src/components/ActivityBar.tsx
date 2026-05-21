@@ -7,11 +7,13 @@ import {
   Puzzle,
   Settings,
   GitBranch,
+  Brain,
 } from 'lucide-react';
 
 const items: { id: PanelId; icon: typeof FileText; label: string }[] = [
   { id: 'explorer', icon: FileText, label: 'Explorer' },
   { id: 'search', icon: Search, label: 'Search' },
+  { id: 'cognitive', icon: Brain, label: 'Cognitive Dashboard' },
   { id: 'terminal', icon: Terminal, label: 'Terminal' },
   { id: 'extensions', icon: Puzzle, label: 'Extensions' },
   { id: 'settings', icon: Settings, label: 'Settings' },

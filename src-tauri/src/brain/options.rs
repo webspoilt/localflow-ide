@@ -1,7 +1,9 @@
 use crate::brain::context::ContextSnapshot;
 use crate::brain::goal::ParsedGoal;
 
-#[derive(Clone, Debug)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OptionStrategy {
     pub name: String,
     pub description: String,

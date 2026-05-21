@@ -4,6 +4,7 @@ import { ExplorerPanel } from './panels/ExplorerPanel';
 import { SearchPanel } from './panels/SearchPanel';
 import { ExtensionsPanel } from './panels/ExtensionsPanel';
 import { SettingsPanel } from './panels/SettingsPanel';
+import { CognitivePanel } from './panels/CognitivePanel';
 import { X } from 'lucide-react';
 
 const panelLabels: Record<string, string> = {
@@ -11,6 +12,7 @@ const panelLabels: Record<string, string> = {
   search: 'Search',
   extensions: 'Extensions',
   settings: 'Settings',
+  cognitive: 'Cognitive Dashboard',
 };
 
 export function Sidebar() {
@@ -27,6 +29,8 @@ export function Sidebar() {
         return <ExtensionsPanel />;
       case 'settings':
         return <SettingsPanel />;
+      case 'cognitive':
+        return <CognitivePanel />;
       default:
         return <ExplorerPanel />;
     }

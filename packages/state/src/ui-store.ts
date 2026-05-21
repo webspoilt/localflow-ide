@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type PanelId = 'explorer' | 'search' | 'terminal' | 'output' | 'extensions' | 'settings';
+export type PanelId = 'explorer' | 'search' | 'terminal' | 'output' | 'extensions' | 'settings' | 'cognitive';
 export type TerminalPanelPosition = 'bottom' | 'right' | 'collapsed';
 
 export interface PanelState {
@@ -40,6 +40,7 @@ export const useUIStore = create<UIStore>((set) => ({
     output: { id: 'output', visible: true },
     extensions: { id: 'extensions', visible: false },
     settings: { id: 'settings', visible: false },
+    cognitive: { id: 'cognitive', visible: false },
   },
 
   toggleSidebar: () => { set((state) => ({ sidebarVisible: !state.sidebarVisible })); },

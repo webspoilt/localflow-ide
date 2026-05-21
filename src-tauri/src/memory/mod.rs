@@ -1,3 +1,5 @@
+pub mod memory_graph;
+
 use std::collections::HashMap;
 use tracing::info;
 

@@ -1,3 +1,6 @@
+pub mod adaptive_orchestrator;
+pub mod consensus;
+
 use tracing::info;
 
 #[derive(Debug, Clone)]
