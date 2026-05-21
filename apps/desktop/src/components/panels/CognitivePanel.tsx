@@ -7,17 +7,13 @@ import {
   Activity,
   DollarSign,
   Play,
-  RotateCcw,
   RefreshCw,
   Search,
   CheckCircle,
-  AlertTriangle,
   FolderSync,
   FileCode,
-  FileText,
   Clock,
   Terminal,
-  Zap,
   Info
 } from 'lucide-react';
 
@@ -54,6 +50,75 @@ interface Decision {
   rationale: string;
 }
 
+interface SpeculativeAssessment {
+  build_impact_risk: number;
+  dependency_bloat_risk: number;
+  memory_impact_mb: number;
+  security_risk_score: number;
+  estimated_time_ms: number;
+  confidence_score: number;
+}
+
+interface StrategyPrediction {
+  option_name: string;
+  build_failures: number;
+  test_coverage: number;
+  assessment: SpeculativeAssessment;
+}
+
+interface SpeculativePrediction {
+  predictions: StrategyPrediction[];
+  best: {
+    name: string;
+    description: string;
+    complexity: number;
+    estimated_hours: number;
+    risk: number;
+  } | null;
+}
+
+interface QueryResult {
+  target_id: string;
+  impacted_files: string[];
+  dependencies: string[];
+}
+
+interface HealthMetrics {
+  architecture_quality: number;
+  technical_debt_score: number;
+  documentation_quality: number;
+}
+
+interface RepoHealth {
+  health_score: number;
+  scanned_files_count: number;
+  metrics: HealthMetrics;
+  aggregate_score: number;
+  architecture_quality: { score: number; details: string };
+  technical_debt: { score: number; details: string };
+  test_coverage: { score: number; details: string };
+  performance_health: { score: number; details: string };
+  security_posture: { score: number; details: string };
+  documentation_quality: { score: number; details: string };
+  build_reliability: { score: number; details: string };
+}
+
+interface TimelinePrediction {
+  upgrade_risk: number;
+  predicted_bottleneck: string;
+  migration_suggestion: string;
+}
+
+interface CostSummary {
+  total_cost_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  energy_wh: number;
+  cpu_utilization: number;
+  gpu_utilization: number;
+  ram_mb: number;
+}
+
 export function CognitivePanel() {
   const [activeTab, setActiveTab] = useState<'topology' | 'cognition' | 'sandbox' | 'cost'>('topology');
   const workspaceRoot = useWorkspaceStore((s) => s.root);
@@ -64,13 +129,13 @@ export function CognitivePanel() {
   const [edges, setEdges] = useState<DagEdge[]>([]);
   const [dagHistory, setDagHistory] = useState<string[]>([]);
   const [simulationParams, setSimulationParams] = useState({ complexity: 2, risk: 1, hours: 4 });
-  const [speculativePrediction, setSpeculativePrediction] = useState<any>(null);
+  const [speculativePrediction, setSpeculativePrediction] = useState<SpeculativePrediction | null>(null);
 
   // State: Cognition / Architecture Graph
   const [queryFile, setQueryFile] = useState('src-tauri/src/main.rs');
-  const [queryResult, setQueryResult] = useState<any>(null);
-  const [repoHealth, setRepoHealth] = useState<any>(null);
-  const [timelinePrediction, setTimelinePrediction] = useState<any>(null);
+  const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
+  const [repoHealth, setRepoHealth] = useState<RepoHealth | null>(null);
+  const [timelinePrediction, setTimelinePrediction] = useState<TimelinePrediction | null>(null);
 
   // State: Sandbox / Security
   const [securityIncidents, setSecurityIncidents] = useState<Incident[]>([]);
@@ -79,40 +144,40 @@ export function CognitivePanel() {
   const [sandboxLog, setSandboxLog] = useState<string[]>([]);
 
   // State: Cost & Explainability
-  const [costSummary, setCostSummary] = useState<any>(null);
+  const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [newDecision, setNewDecision] = useState({ type: 'Refactor', choice: 'Rust modular system', rejected: 'Single file monolithic', rationale: 'Maintain bounds' });
 
   // Refresh topology and DAG
   const refreshDAG = useCallback(() => {
-    invoke<any>('get_execution_graph')
+    invoke<{ nodes: DagNode[]; edges: DagEdge[]; history: string[] }>('get_execution_graph')
       .then((res) => {
-        setNodes(res.nodes || []);
-        setEdges(res.edges || []);
-        setDagHistory(res.history || []);
+        setNodes(res.nodes);
+        setEdges(res.edges);
+        setDagHistory(res.history);
       })
-      .catch((err) => console.error('Failed to get DAG:', err));
+      .catch((err: unknown) => { console.error('Failed to get DAG:', err); });
   }, []);
 
   // Fetch telemetry / costs
   const refreshCosts = useCallback(() => {
-    invoke<any>('get_cost_summary')
-      .then((res) => setCostSummary(res))
-      .catch((err) => console.error('Failed to get cost summary:', err));
+    invoke<CostSummary>('get_cost_summary')
+      .then((res) => { setCostSummary(res); })
+      .catch((err: unknown) => { console.error('Failed to get cost summary:', err); });
   }, []);
 
   // Fetch security logs
   const refreshSecurity = useCallback(() => {
-    invoke<any>('get_security_incidents')
-      .then((res) => setSecurityIncidents(res || []))
-      .catch((err) => console.error('Failed to get incidents:', err));
+    invoke<Incident[]>('get_security_incidents')
+      .then((res) => { setSecurityIncidents(res); })
+      .catch((err: unknown) => { console.error('Failed to get incidents:', err); });
   }, []);
 
   // Fetch decisions
   const refreshDecisions = useCallback(() => {
-    invoke<any>('get_explainability_decisions')
-      .then((res) => setDecisions(res || []))
-      .catch((err) => console.error('Failed to get decisions:', err));
+    invoke<Decision[]>('get_explainability_decisions')
+      .then((res) => { setDecisions(res); })
+      .catch((err: unknown) => { console.error('Failed to get decisions:', err); });
   }, []);
 
   // Fetch all initial data
@@ -123,20 +188,20 @@ export function CognitivePanel() {
     refreshDecisions();
 
     // Trigger initial health assessment
-    invoke<any>('get_repository_health', { basePath })
-      .then((res) => setRepoHealth(res))
-      .catch((err) => console.error('Failed to get health:', err));
+    invoke<RepoHealth>('get_repository_health', { basePath })
+      .then((res) => { setRepoHealth(res); })
+      .catch((err: unknown) => { console.error('Failed to get health:', err); });
 
-    invoke<any>('get_timeline_predictions')
-      .then((res) => setTimelinePrediction(res))
-      .catch((err) => console.error('Failed to get timeline prediction:', err));
+    invoke<TimelinePrediction>('get_timeline_predictions')
+      .then((res) => { setTimelinePrediction(res); })
+      .catch((err: unknown) => { console.error('Failed to get timeline prediction:', err); });
   }, [basePath, refreshDAG, refreshCosts, refreshSecurity, refreshDecisions]);
 
   // Simulate executing/adding node
   const handleSimulateNode = async () => {
     const nodeTypes = ['TaskNode', 'CodeNode', 'BuildNode', 'AgentNode', 'VerificationNode', 'DecisionNode'];
     const randomType = nodeTypes[Math.floor(Math.random() * nodeTypes.length)];
-    const nodeName = `Simulated ${randomType} #${nodes.length + 1}`;
+    const nodeName = `Simulated ${randomType} #${(nodes.length + 1).toString()}`;
     
     try {
       await invoke('add_simulated_node', {
@@ -147,7 +212,7 @@ export function CognitivePanel() {
         inputHash: Math.random().toString(36).substring(7)
       });
       refreshDAG();
-    } catch (err) {
+    } catch (err: unknown) {
       alert('Simulation failed: ' + String(err));
     }
   };
@@ -155,13 +220,13 @@ export function CognitivePanel() {
   // Run Speculative Simulation
   const handleSpeculativeSim = async () => {
     try {
-      const res = await invoke('get_speculative_predictions', {
+      const res = await invoke<SpeculativePrediction>('get_speculative_predictions', {
         complexity: Number(simulationParams.complexity),
         risk: Number(simulationParams.risk),
         estimatedHours: Number(simulationParams.hours)
       });
       setSpeculativePrediction(res);
-    } catch (err) {
+    } catch (err: unknown) {
       alert('Speculative prediction failed: ' + String(err));
     }
   };
@@ -169,9 +234,9 @@ export function CognitivePanel() {
   // Run Architecture Query
   const handleArchQuery = async () => {
     try {
-      const res = await invoke('query_architecture_graph', { targetId: queryFile });
+      const res = await invoke<QueryResult>('query_architecture_graph', { targetId: queryFile });
       setQueryResult(res);
-    } catch (err) {
+    } catch (err: unknown) {
       alert('Architecture query failed: ' + String(err));
     }
   };
@@ -182,9 +247,9 @@ export function CognitivePanel() {
       setSandboxLog(prev => [...prev, `Scanning repository at ${basePath}...`]);
       await invoke('scan_architecture_graph', { basePath });
       setSandboxLog(prev => [...prev, 'Scan completed. Health scores recalculated.']);
-      const health = await invoke<any>('get_repository_health', { basePath });
+      const health = await invoke<RepoHealth>('get_repository_health', { basePath });
       setRepoHealth(health);
-    } catch (err) {
+    } catch (err: unknown) {
       setSandboxLog(prev => [...prev, `Scan failed: ${String(err)}`]);
     }
   };
@@ -195,7 +260,7 @@ export function CognitivePanel() {
       const content = await invoke<string>('virtual_read_file', { path: virtualPath });
       setVirtualContent(content);
       setSandboxLog(prev => [...prev, `Read file virtual sandbox: ${virtualPath}`]);
-    } catch (err) {
+    } catch (err: unknown) {
       setSandboxLog(prev => [...prev, `Virtual read error: ${String(err)}`]);
     }
   };
@@ -206,7 +271,7 @@ export function CognitivePanel() {
       await invoke('virtual_write_file', { path: virtualPath, content: virtualContent });
       setSandboxLog(prev => [...prev, `Wrote file virtual sandbox: ${virtualPath}`]);
       refreshSecurity(); // Leak detection might trigger new incidents
-    } catch (err) {
+    } catch (err: unknown) {
       setSandboxLog(prev => [...prev, `Virtual write error: ${String(err)}`]);
     }
   };
@@ -216,7 +281,7 @@ export function CognitivePanel() {
     try {
       await invoke('commit_virtual_changes');
       setSandboxLog(prev => [...prev, `Commited virtual sandbox changes to real filesystem.`]);
-    } catch (err) {
+    } catch (err: unknown) {
       setSandboxLog(prev => [...prev, `Virtual commit error: ${String(err)}`]);
     }
   };
@@ -232,7 +297,7 @@ export function CognitivePanel() {
       });
       refreshDecisions();
       setNewDecision({ type: 'Refactor', choice: '', rejected: '', rationale: '' });
-    } catch (err) {
+    } catch (err: unknown) {
       alert('Add decision failed: ' + String(err));
     }
   };
@@ -430,25 +495,25 @@ export function CognitivePanel() {
       <div className="cog-tabs">
         <button
           className={`cog-tab-btn ${activeTab === 'topology' ? 'active' : ''}`}
-          onClick={() => setActiveTab('topology')}
+          onClick={() => { setActiveTab('topology'); }}
         >
           <Activity size={14} /> Topology & Spec
         </button>
         <button
           className={`cog-tab-btn ${activeTab === 'cognition' ? 'active' : ''}`}
-          onClick={() => setActiveTab('cognition')}
+          onClick={() => { setActiveTab('cognition'); }}
         >
           <Brain size={14} /> Cognition & Health
         </button>
         <button
           className={`cog-tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`}
-          onClick={() => setActiveTab('sandbox')}
+          onClick={() => { setActiveTab('sandbox'); }}
         >
           <Shield size={14} /> Sandbox & Sec
         </button>
         <button
           className={`cog-tab-btn ${activeTab === 'cost' ? 'active' : ''}`}
-          onClick={() => setActiveTab('cost')}
+          onClick={() => { setActiveTab('cost'); }}
         >
           <DollarSign size={14} /> Governance & Exp
         </button>
@@ -461,13 +526,13 @@ export function CognitivePanel() {
             <div className="section-card">
               <div className="card-title">
                 <Play size={14} className="text-accent-blue" />
-                Execution Graph (DAG)
+                Execution Graph (DAG) ({nodes.length.toString()} nodes, {edges.length.toString()} edges)
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <button className="cog-btn" onClick={handleSimulateNode}>
+                <button className="cog-btn" onClick={() => { void handleSimulateNode(); }}>
                   <Play size={12} /> Spawn Simulated Node
                 </button>
-                <button className="cog-btn-secondary" onClick={refreshDAG}>
+                <button className="cog-btn-secondary" onClick={() => { refreshDAG(); }}>
                   <RefreshCw size={12} /> Sync
                 </button>
               </div>
@@ -513,7 +578,7 @@ export function CognitivePanel() {
                     max="5"
                     className="cog-input"
                     value={simulationParams.complexity}
-                    onChange={(e) => setSimulationParams({ ...simulationParams, complexity: Number(e.target.value) })}
+                    onChange={(e) => { setSimulationParams({ ...simulationParams, complexity: Number(e.target.value) }); }}
                   />
                 </div>
                 <div className="input-group">
@@ -524,7 +589,7 @@ export function CognitivePanel() {
                     max="5"
                     className="cog-input"
                     value={simulationParams.risk}
-                    onChange={(e) => setSimulationParams({ ...simulationParams, risk: Number(e.target.value) })}
+                    onChange={(e) => { setSimulationParams({ ...simulationParams, risk: Number(e.target.value) }); }}
                   />
                 </div>
                 <div className="input-group">
@@ -535,20 +600,20 @@ export function CognitivePanel() {
                     max="20"
                     className="cog-input"
                     value={simulationParams.hours}
-                    onChange={(e) => setSimulationParams({ ...simulationParams, hours: Number(e.target.value) })}
+                    onChange={(e) => { setSimulationParams({ ...simulationParams, hours: Number(e.target.value) }); }}
                   />
                 </div>
               </div>
-              <button className="cog-btn" onClick={handleSpeculativeSim}>
+              <button className="cog-btn" onClick={() => { void handleSpeculativeSim(); }}>
                 Run Risk Simulation
               </button>
 
               {speculativePrediction && (
                 <div style={{ background: 'var(--bg-elevated)', padding: '8px', borderRadius: '4px', fontSize: 'var(--text-xs)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ fontWeight: 600, color: 'var(--accent-blue)', marginBottom: '2px' }}>
-                    Predicted Impact for "{speculativePrediction.best?.name || 'Balanced'}" Approach:
+                    Predicted Impact for "{speculativePrediction.best?.name ?? 'Balanced'}" Approach:
                   </div>
-                  {speculativePrediction.predictions?.map((pred: any, idx: number) => (
+                  {speculativePrediction.predictions.map((pred: StrategyPrediction, idx: number) => (
                     <div key={idx} style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px', marginBottom: '4px' }}>
                       <div style={{ fontWeight: 500 }}>{pred.option_name} Path</div>
                       <div className="card-row">
@@ -602,7 +667,7 @@ export function CognitivePanel() {
                 Knowledge Graph Engine
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="cog-btn" onClick={handleScanRepository} style={{ flex: 1 }}>
+                <button className="cog-btn" onClick={() => { void handleScanRepository(); }} style={{ flex: 1 }}>
                   Scan Repository codebase
                 </button>
               </div>
@@ -615,9 +680,9 @@ export function CognitivePanel() {
                     className="cog-input"
                     style={{ flex: 1 }}
                     value={queryFile}
-                    onChange={(e) => setQueryFile(e.target.value)}
+                    onChange={(e) => { setQueryFile(e.target.value); }}
                   />
-                  <button className="cog-btn-secondary" onClick={handleArchQuery}>
+                  <button className="cog-btn-secondary" onClick={() => { void handleArchQuery(); }}>
                     <Search size={14} />
                   </button>
                 </div>
@@ -628,11 +693,11 @@ export function CognitivePanel() {
                   <div style={{ fontWeight: 600, color: 'var(--accent-blue)', marginBottom: '4px' }}>
                     Impacted Files if {queryResult.target_id} changes:
                   </div>
-                  {queryResult.impacted_files?.length === 0 ? (
+                  {queryResult.impacted_files.length === 0 ? (
                     <div style={{ color: 'var(--text-muted)' }}>None detected (independent module)</div>
                   ) : (
                     <ul style={{ paddingLeft: '16px', margin: '4px 0' }}>
-                      {queryResult.impacted_files?.map((f: string, i: number) => (
+                      {queryResult.impacted_files.map((f: string, i: number) => (
                         <li key={i}>{f}</li>
                       ))}
                     </ul>
@@ -640,11 +705,11 @@ export function CognitivePanel() {
                   <div style={{ fontWeight: 600, color: 'var(--accent-green)', marginTop: '6px', marginBottom: '4px' }}>
                     Dependencies of {queryResult.target_id}:
                   </div>
-                  {queryResult.dependencies?.length === 0 ? (
+                  {queryResult.dependencies.length === 0 ? (
                     <div style={{ color: 'var(--text-muted)' }}>None detected</div>
                   ) : (
                     <ul style={{ paddingLeft: '16px', margin: '4px 0' }}>
-                      {queryResult.dependencies?.map((f: string, i: number) => (
+                      {queryResult.dependencies.map((f: string, i: number) => (
                         <li key={i}>{f}</li>
                       ))}
                     </ul>
@@ -665,14 +730,14 @@ export function CognitivePanel() {
                     <div className="card-row" style={{ marginBottom: '4px' }}>
                       <span className="card-label">Overall Health Score:</span>
                       <span className="card-value" style={{ color: repoHealth.health_score > 75 ? 'var(--accent-green)' : 'var(--accent-yellow)' }}>
-                        {repoHealth.health_score}/100
+                        {repoHealth.health_score.toString()}/100
                       </span>
                     </div>
                     <div className="health-bar">
                       <div
                         className="health-fill"
                         style={{
-                          width: `${repoHealth.health_score}%`,
+                          width: `${repoHealth.health_score.toString()}%`,
                           backgroundColor: repoHealth.health_score > 75 ? 'var(--accent-green)' : 'var(--accent-yellow)'
                         }}
                       />
@@ -750,7 +815,7 @@ export function CognitivePanel() {
                   type="text"
                   className="cog-input"
                   value={virtualPath}
-                  onChange={(e) => setVirtualPath(e.target.value)}
+                  onChange={(e) => { setVirtualPath(e.target.value); }}
                 />
               </div>
               <div className="input-group">
@@ -759,18 +824,18 @@ export function CognitivePanel() {
                   className="cog-input"
                   style={{ fontFamily: 'var(--font-mono)', minHeight: '80px', resize: 'vertical' }}
                   value={virtualContent}
-                  onChange={(e) => setVirtualContent(e.target.value)}
+                  onChange={(e) => { setVirtualContent(e.target.value); }}
                 />
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="cog-btn" style={{ flex: 1 }} onClick={handleVirtualWrite}>
+                <button className="cog-btn" style={{ flex: 1 }} onClick={() => { void handleVirtualWrite(); }}>
                   Sandbox Write
                 </button>
-                <button className="cog-btn-secondary" style={{ flex: 1 }} onClick={handleVirtualRead}>
+                <button className="cog-btn-secondary" style={{ flex: 1 }} onClick={() => { void handleVirtualRead(); }}>
                   Sandbox Read
                 </button>
               </div>
-              <button className="cog-btn" style={{ background: 'var(--accent-green)' }} onClick={handleCommitVirtual}>
+              <button className="cog-btn" style={{ background: 'var(--accent-green)' }} onClick={() => { void handleCommitVirtual(); }}>
                 Commit Virtual Sandbox
               </button>
             </div>
@@ -827,7 +892,7 @@ export function CognitivePanel() {
                 <DollarSign size={14} />
                 Cost & Resource Governance
               </div>
-              <button className="cog-btn-secondary" onClick={refreshCosts} style={{ marginBottom: '4px' }}>
+              <button className="cog-btn-secondary" onClick={() => { refreshCosts(); }} style={{ marginBottom: '4px' }}>
                 <RefreshCw size={12} /> Sync Telemetry
               </button>
               {costSummary ? (
@@ -887,14 +952,14 @@ export function CognitivePanel() {
                     placeholder="Type (e.g. Model)"
                     className="cog-input"
                     value={newDecision.type}
-                    onChange={(e) => setNewDecision({ ...newDecision, type: e.target.value })}
+                    onChange={(e) => { setNewDecision({ ...newDecision, type: e.target.value }); }}
                   />
                   <input
                     type="text"
                     placeholder="Choice Made"
                     className="cog-input"
                     value={newDecision.choice}
-                    onChange={(e) => setNewDecision({ ...newDecision, choice: e.target.value })}
+                    onChange={(e) => { setNewDecision({ ...newDecision, choice: e.target.value }); }}
                   />
                 </div>
                 <input
@@ -902,16 +967,16 @@ export function CognitivePanel() {
                   placeholder="Alternative Rejected"
                   className="cog-input"
                   value={newDecision.rejected}
-                  onChange={(e) => setNewDecision({ ...newDecision, rejected: e.target.value })}
+                  onChange={(e) => { setNewDecision({ ...newDecision, rejected: e.target.value }); }}
                 />
                 <textarea
                   placeholder="Rationale justification"
                   className="cog-input"
                   style={{ minHeight: '40px', resize: 'vertical' }}
                   value={newDecision.rationale}
-                  onChange={(e) => setNewDecision({ ...newDecision, rationale: e.target.value })}
+                  onChange={(e) => { setNewDecision({ ...newDecision, rationale: e.target.value }); }}
                 />
-                <button className="cog-btn" onClick={handleAddDecision}>
+                <button className="cog-btn" onClick={() => { void handleAddDecision(); }}>
                   Add Rationale Entry
                 </button>
               </div>

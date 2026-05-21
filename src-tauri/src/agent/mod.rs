@@ -22,6 +22,7 @@ pub enum AgentType {
     Security,
 }
 
+#[allow(dead_code)]
 pub struct AgentSystem {
     planner: planner::PlannerAgent,
     code: code::CodeAgent,

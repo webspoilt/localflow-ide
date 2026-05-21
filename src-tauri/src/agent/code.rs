@@ -1,4 +1,4 @@
-use crate::scheduler::{TaskDefinition, TaskStatus};
+use crate::scheduler::TaskDefinition;
 use tokio::sync::mpsc;
 use tracing::info;
 

@@ -1,5 +1,4 @@
 use crate::brain::options::OptionStrategy;
-use crate::scheduler::TaskPriority;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]

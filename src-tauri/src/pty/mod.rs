@@ -14,7 +14,7 @@ struct PtyProcess {
     pair: PtyPair,
     writer: Box<dyn Write + Send>,
     _child: Box<dyn ChildKiller + Send + Sync>,
-    reader_task: JoinHandle<()>,
+    _reader_task: JoinHandle<()>,
 }
 
 #[derive(Clone)]
@@ -118,7 +118,7 @@ impl TerminalManager {
                 pair,
                 writer,
                 _child: child,
-                reader_task,
+                _reader_task: reader_task,
             });
         }
 

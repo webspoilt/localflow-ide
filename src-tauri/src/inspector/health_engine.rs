@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use std::fs;
 use std::path::Path;
@@ -11,7 +10,17 @@ pub struct HealthMetric {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthMetrics {
+    pub architecture_quality: f64,
+    pub technical_debt_score: f64,
+    pub documentation_quality: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepositoryHealth {
+    pub health_score: f64,
+    pub scanned_files_count: u32,
+    pub metrics: HealthMetrics,
     pub aggregate_score: f64,
     pub architecture_quality: HealthMetric,
     pub technical_debt: HealthMetric,
@@ -135,7 +144,16 @@ impl HealthEngine {
             + build_reliability.score)
             / 7.0;
 
+        let metrics = HealthMetrics {
+            architecture_quality: arch_score,
+            technical_debt_score: debt_score,
+            documentation_quality: doc_score,
+        };
+
         RepositoryHealth {
+            health_score: aggregate_score,
+            scanned_files_count: file_count as u32,
+            metrics,
             aggregate_score,
             architecture_quality,
             technical_debt,

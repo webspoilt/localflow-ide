@@ -1,4 +1,4 @@
-use localflow_ide::scheduler::{TaskQueue, TaskDefinition, TaskPriority, TaskStatus};
+use localflow_ide::scheduler::{TaskQueue, TaskDefinition, TaskPriority};
 use tokio::sync::mpsc;
 use localflow_ide::events::RuntimeEvent;
 

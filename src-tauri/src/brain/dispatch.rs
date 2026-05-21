@@ -1,6 +1,5 @@
 use tokio::sync::mpsc;
 use tracing::info;
-use uuid::Uuid;
 
 use crate::brain::dag::TaskDag;
 use crate::events::RuntimeEvent;

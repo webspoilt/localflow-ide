@@ -12,13 +12,12 @@ pub mod failure_analysis;
 pub mod recovery;
 pub mod explainability;
 
-use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::info;
 use uuid::Uuid;
 
 use crate::events::RuntimeEvent;
-use crate::scheduler::{TaskDefinition, TaskPriority};
+use crate::scheduler::TaskDefinition;
 
 pub struct Brain {
     context: context::ContextCollector,
@@ -29,7 +28,6 @@ pub struct Brain {
     simulator: simulator::StrategySimulator,
     dag_gen: dag::TaskDagGenerator,
     dispatcher: dispatch::AgentDispatcher,
-    event_sender: mpsc::UnboundedSender<RuntimeEvent>,
 }
 
 impl Brain {
@@ -43,8 +41,7 @@ impl Brain {
             matrix: matrix::DecisionMatrix::new(),
             simulator: simulator::StrategySimulator::new(),
             dag_gen: dag::TaskDagGenerator::new(),
-            dispatcher: dispatch::AgentDispatcher::new(event_sender.clone()),
-            event_sender,
+            dispatcher: dispatch::AgentDispatcher::new(event_sender),
         }
     }
 
@@ -55,7 +52,7 @@ impl Brain {
         let ctx = self.context.collect(raw_goal).await;
         let questions = self.question_gen.generate(&parsed, &ctx);
         let options = self.option_gen.generate(&parsed, &ctx);
-        let mut matrix = self.matrix.clone();
+        let matrix = self.matrix.clone();
         let scores = matrix.evaluate(&options);
         let simulated = self.simulator.simulate(&options, &scores);
         let dag = self.dag_gen.generate(&simulated.best);

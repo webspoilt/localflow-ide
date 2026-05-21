@@ -94,6 +94,7 @@ impl Supervisor {
         let _ = self.event_sender.send(RuntimeEvent::TaskStarted { task_id });
         info!(task_id = %task_id, "Task started");
 
+        #[allow(unused_assignments)]
         let mut last_error = String::new();
         let max_attempts = task.definition.max_retries.max(self.max_retries) + 1;
 
