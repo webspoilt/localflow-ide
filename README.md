@@ -72,14 +72,14 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    Sub["Supervisor"] -->|1. try_acquire(estimated_memory)| Gov["Resource Governor"]
+    Sub["Supervisor"] -->|"1. try_acquire(estimated_memory)"| Gov["Resource Governor"]
     Gov -->|2. Check limits| LimitCheck{"Active Jobs < Max & Mem + Est < Max"}
     LimitCheck -->|Yes| Lease["Create ResourceLease"]
     LimitCheck -->|No| Err["Return Error & Fail Task"]
     Lease -->|3. Proceed to run| Runner["Process Runner"]
     Runner -->|4. Task Finish / Cancel / Abort| DropTrait["ResourceLease Drop Implementation"]
     DropTrait -->|5. Spawn release task| TokioSpawn["tokio::spawn"]
-    TokioSpawn -->|6. release(memory)| GovRelease["Governor: Decrement Jobs & Memory"]
+    TokioSpawn -->|"6. release(memory)"| GovRelease["Governor: Decrement Jobs & Memory"]
 ```
 
 
