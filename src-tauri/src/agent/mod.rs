@@ -1,8 +1,4 @@
-pub mod planner;
 pub mod code;
-pub mod review;
-pub mod test;
-pub mod security;
 
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -10,55 +6,42 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::events::RuntimeEvent;
-use crate::scheduler::TaskDefinition;
-use crate::model::ModelRouter;
+use crate::scheduler::{TaskDefinition, TaskQueue, TaskPriority};
+use crate::supervisor::Supervisor;
 
-#[derive(Debug)]
-pub enum AgentType {
-    Planner,
-    Code,
-    Review,
-    Test,
-    Security,
-}
-
-#[allow(dead_code)]
 pub struct AgentSystem {
-    planner: planner::PlannerAgent,
-    code: code::CodeAgent,
-    review: review::ReviewAgent,
-    test: test::TestAgent,
-    security: security::SecurityAgent,
-    model: Arc<ModelRouter>,
+    task_queue: Arc<TaskQueue>,
+    supervisor: Arc<Supervisor>,
     event_sender: mpsc::UnboundedSender<RuntimeEvent>,
 }
 
 impl AgentSystem {
-    pub fn new(model: Arc<ModelRouter>, event_sender: mpsc::UnboundedSender<RuntimeEvent>) -> Self {
-        info!("Agent System initialized");
-        Self {
-            planner: planner::PlannerAgent,
-            code: code::CodeAgent,
-            review: review::ReviewAgent,
-            test: test::TestAgent,
-            security: security::SecurityAgent,
-            model,
-            event_sender,
-        }
+    pub fn new(
+        task_queue: Arc<TaskQueue>,
+        supervisor: Arc<Supervisor>,
+        event_sender: mpsc::UnboundedSender<RuntimeEvent>,
+    ) -> Self {
+        info!("AgentSystem initialized: dispatches tasks to Supervisor");
+        Self { task_queue, supervisor, event_sender }
     }
 
-    pub fn dispatch(&self, task: &TaskDefinition) -> Option<Uuid> {
-        let agent_type = match task.command.as_deref() {
-            Some(cmd) if cmd.starts_with("agent:planner") => AgentType::Planner,
-            Some(cmd) if cmd.starts_with("agent:code") || cmd.starts_with("agent:execute") => AgentType::Code,
-            Some(cmd) if cmd.starts_with("agent:review") => AgentType::Review,
-            Some(cmd) if cmd.starts_with("agent:test") => AgentType::Test,
-            Some(cmd) if cmd.starts_with("agent:security") => AgentType::Security,
-            _ => return None,
+    pub fn dispatch_task(&self, command: &str, cwd: Option<String>) -> Uuid {
+        let definition = TaskDefinition {
+            id: Uuid::new_v4(),
+            command: Some(command.to_string()),
+            args: vec![],
+            cwd,
+            env: std::collections::HashMap::new(),
+            timeout_ms: 120000,
+            max_retries: 2,
+            priority: TaskPriority::Normal,
         };
+        let id = self.task_queue.enqueue(definition);
+        info!(task_id = %id, command = %command, "Agent dispatched task");
+        id
+    }
 
-        info!(task_id = %task.id, agent = ?agent_type, "Agent dispatched");
-        let _ = self.event_sender.send(RuntimeEvent::TaskStarted { task_id: task.id });
-        Some(task.id)
+    pub async fn cancel_task(&self, task_id: Uuid) -> bool {
+        self.supervisor.cancel_task(task_id).await
     }
 }

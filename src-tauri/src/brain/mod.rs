@@ -1,87 +1,48 @@
-pub mod context;
-pub mod goal;
-pub mod questions;
-pub mod options;
-pub mod matrix;
-pub mod simulator;
-pub mod dag;
-pub mod dispatch;
-pub mod execution_graph;
 pub mod architecture_graph;
-pub mod failure_analysis;
+pub mod execution_graph;
 pub mod recovery;
-pub mod explainability;
 
 use tokio::sync::mpsc;
 use tracing::info;
-use uuid::Uuid;
 
 use crate::events::RuntimeEvent;
 use crate::scheduler::TaskDefinition;
 
 pub struct Brain {
-    context: context::ContextCollector,
-    goal_parser: goal::GoalParser,
-    question_gen: questions::QuestionGenerator,
-    option_gen: options::OptionGenerator,
-    matrix: matrix::DecisionMatrix,
-    simulator: simulator::StrategySimulator,
-    dag_gen: dag::TaskDagGenerator,
-    dispatcher: dispatch::AgentDispatcher,
+    pub arch_graph: architecture_graph::ArchitectureGraph,
+    pub exec_graph: execution_graph::ExecutionGraph,
+    pub recovery: recovery::RecoveryEngine,
+    event_sender: mpsc::UnboundedSender<RuntimeEvent>,
 }
 
 impl Brain {
     pub fn new(event_sender: mpsc::UnboundedSender<RuntimeEvent>) -> Self {
-        info!("Cognitive Brain initialized");
+        info!("Brain initialized: architecture graph + execution DAG + recovery");
         Self {
-            context: context::ContextCollector::new(),
-            goal_parser: goal::GoalParser::new(),
-            question_gen: questions::QuestionGenerator::new(),
-            option_gen: options::OptionGenerator::new(),
-            matrix: matrix::DecisionMatrix::new(),
-            simulator: simulator::StrategySimulator::new(),
-            dag_gen: dag::TaskDagGenerator::new(),
-            dispatcher: dispatch::AgentDispatcher::new(event_sender),
+            arch_graph: architecture_graph::ArchitectureGraph::new(),
+            exec_graph: execution_graph::ExecutionGraph::new(),
+            recovery: recovery::RecoveryEngine::new(),
+            event_sender,
         }
     }
 
-    pub async fn process_goal(&self, raw_goal: &str) -> BrainResult {
-        info!(goal = %raw_goal, "Brain processing goal");
+    pub fn scan_repository(&mut self, root: &str) -> Result<(), String> {
+        info!("Brain scanning repository");
+        self.arch_graph.scan_repository(root)
+    }
 
-        let parsed = self.goal_parser.parse(raw_goal);
-        let ctx = self.context.collect(raw_goal).await;
-        let questions = self.question_gen.generate(&parsed, &ctx);
-        let options = self.option_gen.generate(&parsed, &ctx);
-        let matrix = self.matrix.clone();
-        let scores = matrix.evaluate(&options);
-        let simulated = self.simulator.simulate(&options, &scores);
-        let dag = self.dag_gen.generate(&simulated.best);
-
-        let tasks = self.dispatcher.dispatch(&dag).await;
-
-        BrainResult {
-            goal_id: Uuid::new_v4(),
-            questions,
-            options,
-            scores,
-            simulation: simulated,
-            dag,
-            tasks,
+    pub fn plan_from_dag(&mut self, goal: &str, tasks: Vec<TaskDefinition>) -> Vec<TaskDefinition> {
+        let node_id = self.exec_graph.add_node(
+            &format!("goal:{}", goal),
+            execution_graph::NodeType::TaskNode,
+            "brain",
+            &format!("plan for {}", goal),
+            "",
+        );
+        let mut planned = tasks;
+        for task in &mut planned {
+            let _ = self.exec_graph.add_edge(node_id, task.id);
         }
+        planned
     }
-
-    pub async fn plan(&self, goal: &str) -> Vec<TaskDefinition> {
-        let result = self.process_goal(goal).await;
-        result.tasks
-    }
-}
-
-pub struct BrainResult {
-    pub goal_id: Uuid,
-    pub questions: Vec<String>,
-    pub options: Vec<options::OptionStrategy>,
-    pub scores: Vec<matrix::ScoredOption>,
-    pub simulation: simulator::SimulationResult,
-    pub dag: dag::TaskDag,
-    pub tasks: Vec<TaskDefinition>,
 }
